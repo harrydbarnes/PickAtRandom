@@ -1104,6 +1104,7 @@ function readZipUInt32(bytes, offset) {
 }
 
 function findZipDirectory(bytes) {
+  /* EOCD is at least 22 bytes long and ZIP comments can extend the search window by up to 65,535 bytes. */
   for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 65557); i--) {
     if (readZipUInt32(bytes, i) === 0x06054b50) return i;
   }
@@ -1188,8 +1189,9 @@ function getSheetCellText(cell, sharedStrings) {
   const type = cell.getAttribute('t') || '';
   if (type === 'inlineStr') return getSharedStringValue(cell);
   if (type === 's') {
-    const index = Number(cell.getElementsByTagName('v')[0]?.textContent || -1);
-    return sharedStrings[index] || '';
+    const rawIndex = cell.getElementsByTagName('v')[0]?.textContent;
+    const index = Number(rawIndex);
+    return Number.isInteger(index) && index >= 0 ? (sharedStrings[index] || '') : '';
   }
   return cell.getElementsByTagName('v')[0]?.textContent || '';
 }
@@ -1261,7 +1263,7 @@ async function importExcelFile(file) {
     const importedWeights = Object.fromEntries(rows.map(row => [row.name, row.weight]));
 
     if (importedEntries.length < 2) {
-      showToast('⚠️ Add at least 2 names in column A from row 2');
+      showToast('⚠️ Excel file must contain at least 2 names in column A from row 2');
       return;
     }
 
@@ -1269,7 +1271,8 @@ async function importExcelFile(file) {
     renderWeightsTable();
     syncImportedWeights(importedWeights);
     showToast(`📥 Imported ${importedEntries.length} entries from ${file.name}`);
-  } catch (_) {
+  } catch (err) {
+    console.error('Excel import failed', err);
     showToast('⚠️ Could not read that Excel file');
   } finally {
     if (input) input.value = '';
