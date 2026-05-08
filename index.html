@@ -316,6 +316,45 @@
     }
     .add-entry-btn:hover { opacity: 0.85; }
     .tip-text { font-size: 0.78rem; opacity: 0.55; margin-top: 0.5rem; }
+    .excel-import-zone {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      width: 100%;
+      margin-top: 1rem;
+      padding: 1rem 1.1rem;
+      border: 2px solid rgba(46,48,71,0.3);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.14);
+      color: var(--purple);
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, transform 0.15s;
+    }
+    .excel-import-zone.drop-enabled { border-style: dashed; }
+    .excel-import-zone:hover,
+    .excel-import-zone:focus-visible,
+    .excel-import-zone.drag-active {
+      border-color: var(--purple);
+      background: rgba(255,255,255,0.24);
+      transform: translateY(-1px);
+      outline: none;
+    }
+    .excel-import-title {
+      font-size: 0.95rem;
+      font-weight: 800;
+    }
+    .excel-import-copy {
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+    .excel-import-note {
+      font-size: 0.78rem;
+      opacity: 0.68;
+      line-height: 1.45;
+    }
 
     /* ── Settings rows ──────────────────────────────────────────────────────── */
     .setting-row {
@@ -867,6 +906,17 @@
         <div id="entries-list"></div>
         <button class="add-entry-btn" id="btn-add-entry">＋ Add Entry</button>
         <p class="tip-text">💡 Paste a comma-separated list or rows from Excel into any entry field to bulk-add</p>
+        <input
+          id="excel-import-input"
+          type="file"
+          accept=".xlsx,.xlsm,.xltx,.xltm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          hidden
+        />
+        <label class="excel-import-zone" id="excel-import-zone" for="excel-import-input" role="button" tabindex="0">
+          <span class="excel-import-title">📥 Import from Excel</span>
+          <span class="excel-import-copy" id="excel-import-copy">Click to choose an Excel file</span>
+          <span class="excel-import-note">Use the first sheet with names in column A from A2 and numbers in column B from B2.</span>
+        </label>
       </div>
     </div>
 
@@ -1001,6 +1051,9 @@
   </div>
 </div>
 
+<!-- ExcelJS CDN -->
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.js"></script>
+
 <!-- canvas-confetti CDN -->
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 
@@ -1030,6 +1083,95 @@ function escHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function isMobileUploadOnly() {
+  return window.innerWidth <= 640;
+}
+
+function isExcelImportFile(file) {
+  return !!file && /\.(xlsx|xlsm|xltx|xltm)$/i.test(file.name || '');
+}
+
+function getExcelWeightValue(cell) {
+  const raw = cell ? cell.value : null;
+  if (typeof raw === 'number' && Number.isFinite(raw)) return Math.max(0, raw);
+  if (raw && typeof raw === 'object' && typeof raw.result === 'number' && Number.isFinite(raw.result)) {
+    return Math.max(0, raw.result);
+  }
+
+  const text = cell && typeof cell.text === 'string'
+    ? cell.text.trim().replace(/,/g, '')
+    : '';
+  const parsed = Number(text);
+  return Number.isFinite(parsed) ? Math.max(0, parsed) : 1;
+}
+
+function syncImportedWeights(weightMap) {
+  document.querySelectorAll('.weight-input').forEach(inp => {
+    inp.value = weightMap[inp.dataset.entry] != null ? weightMap[inp.dataset.entry] : 1;
+  });
+  updateChanceDisplay();
+}
+
+async function importExcelFile(file) {
+  const input = document.getElementById('excel-import-input');
+  try {
+    if (!file) return;
+    if (!isExcelImportFile(file)) {
+      showToast('⚠️ Choose an Excel .xlsx file');
+      return;
+    }
+    if (typeof ExcelJS === 'undefined') {
+      showToast('⚠️ Excel import is unavailable right now');
+      return;
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(await file.arrayBuffer());
+
+    const sheet = workbook.worksheets[0];
+    if (!sheet) {
+      showToast('⚠️ No worksheet found in that file');
+      return;
+    }
+
+    const importedEntries = [];
+    const importedWeights = {};
+    for (let rowNumber = 2; rowNumber <= sheet.rowCount; rowNumber++) {
+      const name = sheet.getCell(rowNumber, 1).text.trim();
+      if (!name) continue;
+      importedEntries.push(name);
+      importedWeights[name] = getExcelWeightValue(sheet.getCell(rowNumber, 2));
+    }
+
+    if (importedEntries.length < 2) {
+      showToast('⚠️ Add at least 2 names in column A from row 2');
+      return;
+    }
+
+    renderEntries(ensureTrailingBlank(importedEntries));
+    renderWeightsTable();
+    syncImportedWeights(importedWeights);
+    showToast(`📥 Imported ${importedEntries.length} entries from ${file.name}`);
+  } catch (_) {
+    showToast('⚠️ Could not read that Excel file');
+  } finally {
+    if (input) input.value = '';
+  }
+}
+
+function updateExcelImportZone() {
+  const zone = document.getElementById('excel-import-zone');
+  const copy = document.getElementById('excel-import-copy');
+  if (!zone || !copy) return;
+
+  const mobileOnly = isMobileUploadOnly();
+  zone.classList.toggle('drop-enabled', !mobileOnly);
+  zone.classList.remove('drag-active');
+  copy.textContent = mobileOnly
+    ? 'Tap to choose an Excel file'
+    : 'Click to choose an Excel file, or drag and drop it here';
 }
 
 /* ─── Persistence ───────────────────────────────────────────────────────────── */
@@ -1245,6 +1387,7 @@ function saveCurrentWheel(andSpin) {
   const rememberSpun   = document.getElementById('toggle-remember').classList.contains('on');
   const weightLabel    = document.getElementById('weight-label-input').value.trim();
   const reverseWeights = document.getElementById('toggle-reverse-weights').classList.contains('on');
+  renderWeightsTable();
   const weights        = getWeightValues();
 
   if (!name) {
@@ -1984,6 +2127,50 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-save-only').addEventListener('click', () => saveCurrentWheel(false));
   document.getElementById('btn-save-run') .addEventListener('click', () => saveCurrentWheel(true));
 
+  const excelImportZone = document.getElementById('excel-import-zone');
+  const excelImportInput = document.getElementById('excel-import-input');
+  updateExcelImportZone();
+
+  excelImportInput.addEventListener('change', e => {
+    const file = e.target.files && e.target.files[0];
+    importExcelFile(file);
+  });
+
+  excelImportZone.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      excelImportInput.click();
+    }
+  });
+
+  excelImportZone.addEventListener('dragenter', e => {
+    if (isMobileUploadOnly()) return;
+    e.preventDefault();
+    excelImportZone.classList.add('drag-active');
+  });
+
+  excelImportZone.addEventListener('dragover', e => {
+    if (isMobileUploadOnly()) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+    excelImportZone.classList.add('drag-active');
+  });
+
+  excelImportZone.addEventListener('dragleave', e => {
+    if (isMobileUploadOnly()) return;
+    if (!excelImportZone.contains(e.relatedTarget)) {
+      excelImportZone.classList.remove('drag-active');
+    }
+  });
+
+  excelImportZone.addEventListener('drop', e => {
+    if (isMobileUploadOnly()) return;
+    e.preventDefault();
+    excelImportZone.classList.remove('drag-active');
+    const file = e.dataTransfer && e.dataTransfer.files ? e.dataTransfer.files[0] : null;
+    importExcelFile(file);
+  });
+
   /* ── Spin ── */
   document.getElementById('btn-back-spin').addEventListener('click', () => {
     renderHome();
@@ -2060,6 +2247,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ── Resize: redraw wheel ── */
   window.addEventListener('resize', () => {
+    updateExcelImportZone();
     if (!document.getElementById('view-spin').classList.contains('active')) return;
     const wheel = getWheel(currentWheelId);
     if (!wheel) return;
