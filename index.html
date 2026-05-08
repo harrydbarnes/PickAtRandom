@@ -8,6 +8,7 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
+      /* sRGB fallbacks first; display-p3 overrides where supported */
       --green: #81E39E;
       --green: color(display-p3 0.507 0.889 0.621);
       --purple: #2A0121;
@@ -590,6 +591,42 @@
     }
     .share-create-btn:hover { opacity: 0.88; transform: translateY(-1px); }
 
+    /* ── Copy-link modal (clipboard fallback) ───────────────────────────────── */
+    .copy-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1100;
+      padding: 1rem;
+      backdrop-filter: blur(3px);
+    }
+    .copy-modal-card {
+      background: var(--purple);
+      color: var(--green);
+      border-radius: 18px;
+      padding: 1.5rem;
+      max-width: 460px;
+      width: 100%;
+      border: 2px solid rgba(129,227,158,0.3);
+    }
+    .copy-modal-card h3 { font-size: 1rem; margin-bottom: 0.75rem; }
+    .copy-modal-input {
+      width: 100%;
+      padding: 0.65rem 0.9rem;
+      background: rgba(129,227,158,0.08);
+      border: 1px solid rgba(129,227,158,0.3);
+      border-radius: 8px;
+      color: var(--green);
+      font-size: 0.85rem;
+      font-family: var(--font);
+      margin-bottom: 0.75rem;
+      outline: none;
+    }
+    .copy-modal-actions { display: flex; gap: 0.5rem; }
+
     /* ── Responsive ─────────────────────────────────────────────────────────── */
     @media (max-width: 480px) {
       .app-header h1 { font-size: 1rem; }
@@ -743,6 +780,18 @@
 
 <!-- ═══════════════════════════════════════════════════════════════ Toast ═══ -->
 <div class="toast" id="toast" aria-live="polite"></div>
+
+<!-- ══════════════════════════════════════════ OVERLAY: Copy-link fallback ═══ -->
+<div class="copy-modal-overlay" id="copy-modal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="copy-modal-title">
+  <div class="copy-modal-card">
+    <h3 id="copy-modal-title">🔗 Share this link</h3>
+    <input class="copy-modal-input" id="copy-modal-input" type="text" readonly aria-label="Share link" />
+    <div class="copy-modal-actions">
+      <button class="btn-primary" id="btn-copy-modal-copy" style="flex:1">Copy</button>
+      <button class="btn-secondary" id="btn-copy-modal-close" style="flex:0 0 auto;padding:0.9rem 1.2rem">✕</button>
+    </div>
+  </div>
+</div>
 
 <!-- canvas-confetti CDN -->
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
@@ -1328,14 +1377,15 @@ function shareResult() {
   };
 
   try {
-    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+    /* encodeURIComponent gives ASCII-safe percent-encoded string; btoa handles that cleanly */
+    const encoded = btoa(encodeURIComponent(JSON.stringify(payload)));
     const url = `${location.origin}${location.pathname}#share=${encoded}`;
     navigator.clipboard.writeText(url)
       .then(() => showToast('🔗 Share link copied!'))
-      .catch(() => { prompt('Copy this share link:', url); });
+      .catch(() => showCopyModal(url));
   } catch (err) {
-    /* btoa can fail on exotic chars — prompt as fallback */
-    prompt('Copy this share link:', `${location.href}#share=error`);
+    /* JSON serialisation failed — show error in toast */
+    showToast('⚠️ Could not generate share link');
   }
 }
 
@@ -1343,7 +1393,7 @@ function loadShareView() {
   if (!location.hash.startsWith('#share=')) return false;
   try {
     const encoded = location.hash.slice(7);
-    const data    = JSON.parse(decodeURIComponent(escape(atob(encoded))));
+    const data    = JSON.parse(decodeURIComponent(atob(encoded)));
 
     const canvas = document.getElementById('share-wheel-canvas');
     const size   = Math.min(window.innerWidth - 48, 320);
@@ -1372,6 +1422,20 @@ function showToast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+/* ─── COPY-LINK MODAL (clipboard fallback) ──────────────────────────────────── */
+function showCopyModal(url) {
+  const modal = document.getElementById('copy-modal');
+  const input = document.getElementById('copy-modal-input');
+  input.value = url;
+  modal.style.display = 'flex';
+  /* Select text so user can copy with keyboard */
+  setTimeout(() => { input.select(); }, 50);
+}
+
+function hideCopyModal() {
+  document.getElementById('copy-modal').style.display = 'none';
 }
 
 /* ─── "IS THIS RANDOM?" CODE SNIPPET ───────────────────────────────────────── */
@@ -1544,6 +1608,19 @@ document.addEventListener('DOMContentLoaded', () => {
     history.pushState('', document.title, location.pathname);
     currentWheelId = null;
     openSetup(null);
+  });
+
+  /* ── Copy-link modal ── */
+  document.getElementById('btn-copy-modal-copy').addEventListener('click', () => {
+    const input = document.getElementById('copy-modal-input');
+    input.select();
+    document.execCommand('copy');
+    hideCopyModal();
+    showToast('🔗 Share link copied!');
+  });
+  document.getElementById('btn-copy-modal-close').addEventListener('click', hideCopyModal);
+  document.getElementById('copy-modal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) hideCopyModal();
   });
 
   /* ── Resize: redraw wheel ── */
