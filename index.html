@@ -170,6 +170,7 @@
       max-width: 640px;
       width: 100%;
       margin: 0 auto;
+      text-align: center;
     }
     .random-btn {
       background: transparent;
@@ -728,6 +729,33 @@
       margin-top: 0.25rem;
     }
 
+    /* ── Entry append animation ─────────────────────────────────────────────── */
+    @keyframes entry-appear {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .entry-row.entry-slide-in {
+      animation: entry-appear 0.22s ease-out forwards;
+    }
+
+    /* ── View page transitions ───────────────────────────────────────────────── */
+    @keyframes view-enter {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .view.active {
+      display: flex;
+      animation: view-enter 0.2s ease-out forwards;
+    }
+
+    /* ── Desktop: constrain key button widths ────────────────────────────────── */
+    @media (min-width: 680px) {
+      .action-bar { justify-content: center; }
+      .action-bar .btn-primary,
+      .action-bar .btn-secondary { flex: 0 1 180px; }
+      .create-wheel-btn { max-width: 280px; margin-left: auto; margin-right: auto; }
+    }
+
     /* ── Responsive ─────────────────────────────────────────────────────────── */
     @media (max-width: 480px) {
       .app-header h1 { font-size: 1rem; }
@@ -1043,6 +1071,14 @@ function openSetup(wheelId) {
 
   switchTab('entries');
   showView('setup');
+  /* Auto-focus the title field when creating a brand-new wheel.
+     Small delay lets the view-enter animation begin before the keyboard appears. */
+  if (!wheelId) {
+    setTimeout(() => {
+      const inp = document.getElementById('wheel-name-input');
+      if (inp) inp.focus();
+    }, 120);
+  }
 }
 
 function ensureTrailingBlank(arr) {
@@ -1081,18 +1117,34 @@ function getEntryValues() {
 
 function onEntryInput(e) {
   const entries = getEntryValues();
-  /* If all entries are now filled, append one blank */
+  /* If all entries are now filled, smoothly append one new blank row */
   if (entries.every(v => v.trim() !== '')) {
-    const idx = parseInt(e.target.dataset.index, 10);
-    renderEntries([...entries, '']);
-    /* Restore focus and cursor */
-    const inputs = document.querySelectorAll('.entry-input');
-    const target = inputs[idx];
-    if (target) {
-      target.focus();
-      const len = target.value.length;
-      target.setSelectionRange(len, len);
-    }
+    const newIndex = entries.length;
+    const list = document.getElementById('entries-list');
+    const row = document.createElement('div');
+    row.className = 'entry-row entry-slide-in';
+    row.dataset.index = newIndex;
+
+    const inp = document.createElement('input');
+    inp.className   = 'form-input entry-input';
+    inp.type        = 'text';
+    inp.placeholder = `Entry ${newIndex + 1}`;
+    inp.dataset.index = newIndex;
+    inp.autocomplete  = 'off';
+
+    const del = document.createElement('button');
+    del.className  = 'entry-del-btn';
+    del.dataset.index = newIndex;
+    del.setAttribute('aria-label', `Remove entry ${newIndex + 1}`);
+    del.textContent = '✕';
+
+    row.appendChild(inp);
+    row.appendChild(del);
+    list.appendChild(row);
+    row.addEventListener('animationend', () => row.classList.remove('entry-slide-in'), { once: true });
+    inp.addEventListener('input', onEntryInput);
+    inp.addEventListener('paste', onEntryPaste);
+    del.addEventListener('click', onEntryDelete);
   }
 }
 
