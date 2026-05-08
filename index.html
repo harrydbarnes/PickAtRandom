@@ -591,6 +591,33 @@
     }
     .share-create-btn:hover { opacity: 0.88; transform: translateY(-1px); }
 
+    /* ── Confirm-delete modal ────────────────────────────────────────────────── */
+    .confirm-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1200;
+      padding: 1rem;
+      backdrop-filter: blur(3px);
+    }
+    .confirm-card {
+      background: var(--purple);
+      color: var(--green);
+      border-radius: 18px;
+      padding: 1.75rem 1.5rem;
+      max-width: 380px;
+      width: 100%;
+      border: 2px solid rgba(129,227,158,0.3);
+      text-align: center;
+      animation: popup-bounce 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .confirm-card h3 { font-size: 1.15rem; margin-bottom: 0.5rem; }
+    .confirm-card p  { font-size: 0.9rem; opacity: 0.75; margin-bottom: 1.25rem; }
+    .confirm-actions { display: flex; gap: 0.65rem; justify-content: center; }
+
     /* ── Copy-link modal (clipboard fallback) ───────────────────────────────── */
     .copy-modal-overlay {
       position: fixed;
@@ -789,6 +816,18 @@
     <div class="copy-modal-actions">
       <button class="btn-primary" id="btn-copy-modal-copy" style="flex:1">Copy</button>
       <button class="btn-secondary" id="btn-copy-modal-close" style="flex:0 0 auto;padding:0.9rem 1.2rem">✕</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ OVERLAY: Confirm Delete ═══ -->
+<div class="confirm-overlay" id="confirm-modal" style="display:none" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
+  <div class="confirm-card">
+    <h3 id="confirm-title">🗑️ Delete Wheel?</h3>
+    <p>This cannot be undone.</p>
+    <div class="confirm-actions">
+      <button class="popup-btn popup-btn-secondary" id="btn-confirm-cancel">Cancel</button>
+      <button class="popup-btn popup-btn-primary"  id="btn-confirm-ok">Delete</button>
     </div>
   </div>
 </div>
@@ -1438,6 +1477,20 @@ function hideCopyModal() {
   document.getElementById('copy-modal').style.display = 'none';
 }
 
+/* ─── CONFIRM MODAL ──────────────────────────────────────────────────────────── */
+let _confirmCallback = null;
+
+function showConfirm(message, onConfirm) {
+  document.getElementById('confirm-title').textContent = message;
+  _confirmCallback = onConfirm;
+  document.getElementById('confirm-modal').style.display = 'flex';
+}
+
+function hideConfirm() {
+  _confirmCallback = null;
+  document.getElementById('confirm-modal').style.display = 'none';
+}
+
 /* ─── "IS THIS RANDOM?" CODE SNIPPET ───────────────────────────────────────── */
 const RANDOM_CODE = `// How Pick@Random selects your winner:
 
@@ -1512,11 +1565,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (action.dataset.action === 'edit') {
         openSetup(id);
       } else if (action.dataset.action === 'delete') {
-        if (confirm('Delete this wheel? This cannot be undone.')) {
+        showConfirm('🗑️ Delete this wheel?', () => {
           wheels = wheels.filter(w => w.id !== id);
           saveWheels();
           renderHome();
-        }
+        });
       }
     }
   });
@@ -1613,14 +1666,30 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ── Copy-link modal ── */
   document.getElementById('btn-copy-modal-copy').addEventListener('click', () => {
     const input = document.getElementById('copy-modal-input');
-    input.select();
-    document.execCommand('copy');
-    hideCopyModal();
-    showToast('🔗 Share link copied!');
+    navigator.clipboard.writeText(input.value)
+      .then(() => {
+        hideCopyModal();
+        showToast('🔗 Share link copied!');
+      })
+      .catch(() => {
+        /* Last resort: select text so user can manually Ctrl+C */
+        input.select();
+        showToast('📋 Select all + copy (Ctrl+C / ⌘C)');
+      });
   });
   document.getElementById('btn-copy-modal-close').addEventListener('click', hideCopyModal);
   document.getElementById('copy-modal').addEventListener('click', e => {
     if (e.target === e.currentTarget) hideCopyModal();
+  });
+
+  /* ── Confirm-delete modal ── */
+  document.getElementById('btn-confirm-ok').addEventListener('click', () => {
+    if (_confirmCallback) _confirmCallback();
+    hideConfirm();
+  });
+  document.getElementById('btn-confirm-cancel').addEventListener('click', hideConfirm);
+  document.getElementById('confirm-modal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) hideConfirm();
   });
 
   /* ── Resize: redraw wheel ── */
