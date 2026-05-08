@@ -1657,11 +1657,7 @@ function renderWeightsTable() {
   }
 
   /* Preserve values already typed in the DOM across tab switches */
-  const existing = {};
-  container.querySelectorAll('.weight-input').forEach(inp => {
-    const val = parseFloat(inp.value);
-    if (inp.dataset.entry != null && !isNaN(val)) existing[inp.dataset.entry] = Math.max(0, val);
-  });
+  const existing = getWeightValues();
 
   const wheel        = getWheel(currentWheelId);
   const savedWeights = wheel ? (wheel.settings.weights || {}) : {};
@@ -1755,7 +1751,7 @@ function getEffectiveWeights(entries) {
 function weightedRandom(weights) {
   const arr = new Uint32Array(1);
   crypto.getRandomValues(arr);
-  const r = arr[0] / (0xFFFFFFFF + 1); /* uniform [0, 1) */
+  const r = arr[0] / 4294967296; /* uniform [0, 1) — 2^32 is exact in float64 */
   let cumulative = 0;
   for (let i = 0; i < weights.length; i++) {
     cumulative += weights[i];
@@ -1883,6 +1879,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('weight-label-input').addEventListener('input', () => {
     const header = document.getElementById('weights-col-header');
     if (header) {
+      /* textContent is XSS-safe — no escaping needed here */
       header.textContent = document.getElementById('weight-label-input').value.trim() || 'Weight';
     }
   });
