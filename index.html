@@ -909,7 +909,7 @@
         <input
           id="excel-import-input"
           type="file"
-          accept=".xlsx,.xlsm,.xltx,.xltm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          accept=".xlsx,.xlsm,.xltx,.xltm"
           hidden
         />
         <label class="excel-import-zone" id="excel-import-zone" for="excel-import-input" role="button" tabindex="0">
@@ -1060,6 +1060,9 @@
 /* ─── Canvas colour constants (CSS vars not readable in canvas ctx) ────────── */
 const C_GREEN  = '#3BBA9C';
 const C_PURPLE = '#2E3047';
+const DEFAULT_WEIGHT = 1;
+const ZIP_EOCD_MIN_SIZE = 22;
+const ZIP_MAX_COMMENT_SIZE = 65535;
 
 /* ─── App state ─────────────────────────────────────────────────────────────── */
 let wheels          = [];
@@ -1104,8 +1107,8 @@ function readZipUInt32(bytes, offset) {
 }
 
 function findZipDirectory(bytes) {
-  /* EOCD is at least 22 bytes long and ZIP comments can extend the search window by up to 65,535 bytes. */
-  for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 65557); i--) {
+  /* Search the maximum EOCD window: 22-byte minimum record size plus up to 65,535 bytes of ZIP comment. */
+  for (let i = bytes.length - ZIP_EOCD_MIN_SIZE; i >= Math.max(0, bytes.length - (ZIP_EOCD_MIN_SIZE + ZIP_MAX_COMMENT_SIZE)); i--) {
     if (readZipUInt32(bytes, i) === 0x06054b50) return i;
   }
   return -1;
@@ -1198,7 +1201,7 @@ function getSheetCellText(cell, sharedStrings) {
 
 function getSheetCellWeight(cell, sharedStrings) {
   const parsed = Number(getSheetCellText(cell, sharedStrings).trim().replace(/,/g, ''));
-  return Number.isFinite(parsed) ? Math.max(0, parsed) : 1;
+  return Number.isFinite(parsed) ? Math.max(0, parsed) : DEFAULT_WEIGHT;
 }
 
 async function readExcelRows(file) {
@@ -1231,9 +1234,9 @@ async function readExcelRows(file) {
       if (rowNumber < 2) return null;
 
       let name = '';
-      let weight = 1;
+      let weight = DEFAULT_WEIGHT;
       Array.from(row.getElementsByTagName('c')).forEach(cell => {
-        const ref = (cell.getAttribute('r') || '').replace(/[0-9]/g, '');
+        const ref = (cell.getAttribute('r') || '').match(/^[A-Z]+/)?.[0] || '';
         if (ref === 'A') name = getSheetCellText(cell, sharedStrings).trim();
         if (ref === 'B') weight = getSheetCellWeight(cell, sharedStrings);
       });
@@ -1241,13 +1244,6 @@ async function readExcelRows(file) {
       return name ? { name, weight } : null;
     })
     .filter(Boolean);
-}
-
-function syncImportedWeights(weightMap) {
-  document.querySelectorAll('.weight-input').forEach(inp => {
-    inp.value = weightMap[inp.dataset.entry] != null ? weightMap[inp.dataset.entry] : 1;
-  });
-  updateChanceDisplay();
 }
 
 async function importExcelFile(file) {
@@ -1268,8 +1264,7 @@ async function importExcelFile(file) {
     }
 
     renderEntries(ensureTrailingBlank(importedEntries));
-    renderWeightsTable();
-    syncImportedWeights(importedWeights);
+    renderWeightsTable(importedWeights);
     showToast(`📥 Imported ${importedEntries.length} entries from ${file.name}`);
   } catch (err) {
     console.error('Excel import failed', err);
@@ -1499,14 +1494,19 @@ function setToggle(el, on) {
   el.setAttribute('aria-checked', on ? 'true' : 'false');
 }
 
+function syncWeightsTableToCurrentEntries() {
+  const existingWeights = getWeightValues();
+  renderWeightsTable(existingWeights);
+  return getWeightValues();
+}
+
 function saveCurrentWheel(andSpin) {
   const name           = document.getElementById('wheel-name-input').value.trim();
   const entries        = getEntryValues();
   const rememberSpun   = document.getElementById('toggle-remember').classList.contains('on');
   const weightLabel    = document.getElementById('weight-label-input').value.trim();
   const reverseWeights = document.getElementById('toggle-reverse-weights').classList.contains('on');
-  renderWeightsTable();
-  const weights        = getWeightValues();
+  const weights        = syncWeightsTableToCurrentEntries();
 
   if (!name) {
     const inp = document.getElementById('wheel-name-input');
@@ -2005,7 +2005,7 @@ function selectWinner(entries) {
 /* ─── WEIGHTED CHANCES ──────────────────────────────────────────────────────── */
 
 /* Render the weights table in the Settings tab using current entry values */
-function renderWeightsTable() {
+function renderWeightsTable(preservedWeights) {
   const container = document.getElementById('weights-table-container');
   const entries   = getEntryValues().filter(e => e.trim() !== '');
 
@@ -2015,7 +2015,7 @@ function renderWeightsTable() {
   }
 
   /* Preserve values already typed in the DOM across tab switches */
-  const existing = getWeightValues();
+  const existing = preservedWeights || getWeightValues();
 
   const wheel        = getWheel(currentWheelId);
   const savedWeights = wheel ? (wheel.settings.weights || {}) : {};
@@ -2024,7 +2024,7 @@ function renderWeightsTable() {
   const getInitialWeight = e => {
     if (existing[e]     != null) return existing[e];
     if (savedWeights[e] != null) return savedWeights[e];
-    return 1;
+    return DEFAULT_WEIGHT;
   };
 
   container.innerHTML = `
