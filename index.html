@@ -916,7 +916,7 @@
         <label class="excel-import-zone" id="excel-import-zone" for="excel-import-input" role="button" tabindex="0">
           <span class="excel-import-title">📥 Import from Excel</span>
           <span class="excel-import-copy" id="excel-import-copy">Click to choose an Excel file</span>
-          <span class="excel-import-note">Use the first sheet with names in column A from A2 and numbers in column B from B2.</span>
+          <span class="excel-import-note">Use the first sheet with names in column A from A2 and numeric weights in column B from B2.</span>
         </label>
       </div>
     </div>
@@ -1204,7 +1204,7 @@ function getSheetCellText(cell, sharedStrings) {
 }
 
 function getSheetCellWeight(cell, sharedStrings) {
-  /* Allow values like "1,000" from formatted spreadsheet cells; values that use commas as decimals may be misread. */
+  /* Allow values like "1,000" from formatted spreadsheet cells; "1,5" will be read as 15, not 1.5. */
   const parsed = Number(getSheetCellText(cell, sharedStrings).trim().replace(/,/g, ''));
   return Number.isFinite(parsed) ? Math.max(0, parsed) : DEFAULT_WEIGHT;
 }
@@ -1264,7 +1264,7 @@ async function importExcelFile(file) {
     const importedWeights = Object.fromEntries(rows.map(row => [row.name, row.weight]));
 
     if (importedEntries.length < 2) {
-      showToast('⚠️ Excel file must contain at least 2 names in column A starting from row 2 (row 1 is skipped)');
+      showToast('⚠️ Excel file must contain at least 2 names in column A starting from row 2 (row 1 is reserved for headers)');
       return;
     }
 
