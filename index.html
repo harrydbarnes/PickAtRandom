@@ -910,6 +910,7 @@
           id="excel-import-input"
           type="file"
           accept=".xlsx,.xlsm,.xltx,.xltm"
+          aria-label="Import entries and weights from an Excel file"
           hidden
         />
         <label class="excel-import-zone" id="excel-import-zone" for="excel-import-input" role="button" tabindex="0">
@@ -1063,6 +1064,8 @@ const C_PURPLE = '#2E3047';
 const DEFAULT_WEIGHT = 1;
 const ZIP_EOCD_MIN_SIZE = 22;
 const ZIP_MAX_COMMENT_SIZE = 65535;
+const ZIP_EOCD_SIGNATURE = 0x06054b50;
+const ZIP_CENTRAL_DIRECTORY_SIGNATURE = 0x02014b50;
 
 /* ─── App state ─────────────────────────────────────────────────────────────── */
 let wheels          = [];
@@ -1109,7 +1112,7 @@ function readZipUInt32(bytes, offset) {
 function findZipDirectory(bytes) {
   /* Search the maximum EOCD window: 22-byte minimum record size plus up to 65,535 bytes of ZIP comment. */
   for (let i = bytes.length - ZIP_EOCD_MIN_SIZE; i >= Math.max(0, bytes.length - (ZIP_EOCD_MIN_SIZE + ZIP_MAX_COMMENT_SIZE)); i--) {
-    if (readZipUInt32(bytes, i) === 0x06054b50) return i;
+    if (readZipUInt32(bytes, i) === ZIP_EOCD_SIGNATURE) return i;
   }
   return -1;
 }
@@ -1133,7 +1136,7 @@ async function readZipFiles(buffer) {
   const files = new Map();
 
   for (let i = 0; i < entryCount; i++) {
-    if (readZipUInt32(bytes, cursor) !== 0x02014b50) throw new Error('Invalid ZIP directory entry');
+    if (readZipUInt32(bytes, cursor) !== ZIP_CENTRAL_DIRECTORY_SIGNATURE) throw new Error('Invalid ZIP directory entry');
 
     const compression = readZipUInt16(bytes, cursor + 10);
     const compressedSize = readZipUInt32(bytes, cursor + 20);
@@ -1154,7 +1157,7 @@ async function readZipFiles(buffer) {
     } else if (compression === 8) {
       fileBytes = await inflateZipEntry(compressedData);
     } else {
-      throw new Error('Unsupported XLSX compression');
+      throw new Error(`Unsupported XLSX compression method: ${compression}`);
     }
 
     files.set(name, decoder.decode(fileBytes));
@@ -1200,6 +1203,7 @@ function getSheetCellText(cell, sharedStrings) {
 }
 
 function getSheetCellWeight(cell, sharedStrings) {
+  /* Allow values like "1,000" from formatted spreadsheet cells. */
   const parsed = Number(getSheetCellText(cell, sharedStrings).trim().replace(/,/g, ''));
   return Number.isFinite(parsed) ? Math.max(0, parsed) : DEFAULT_WEIGHT;
 }
@@ -1251,7 +1255,7 @@ async function importExcelFile(file) {
   try {
     if (!file) return;
     if (!isExcelImportFile(file)) {
-      showToast('⚠️ Choose an Excel .xlsx file');
+      showToast('⚠️ Choose a supported Excel file');
       return;
     }
     const rows = await readExcelRows(file);
@@ -1259,7 +1263,7 @@ async function importExcelFile(file) {
     const importedWeights = Object.fromEntries(rows.map(row => [row.name, row.weight]));
 
     if (importedEntries.length < 2) {
-      showToast('⚠️ Excel file must contain at least 2 names in column A from row 2');
+      showToast('⚠️ Excel file must contain at least 2 names in column A starting from row 2, after the header row');
       return;
     }
 
@@ -1497,7 +1501,7 @@ function setToggle(el, on) {
 function syncWeightsTableToCurrentEntries() {
   const existingWeights = getWeightValues();
   renderWeightsTable(existingWeights);
-  return getWeightValues();
+  return collectWeightValues(document.querySelectorAll('.weight-input'));
 }
 
 function saveCurrentWheel(andSpin) {
@@ -2069,14 +2073,18 @@ function updateChanceDisplay() {
   });
 }
 
-/* Read current weight inputs from the DOM (works even when Settings panel is hidden) */
-function getWeightValues() {
+function collectWeightValues(inputs) {
   const weights = {};
-  document.querySelectorAll('.weight-input').forEach(inp => {
+  Array.from(inputs).forEach(inp => {
     const val = parseFloat(inp.value);
     if (inp.dataset.entry != null && !isNaN(val)) weights[inp.dataset.entry] = Math.max(0, val);
   });
   return weights;
+}
+
+/* Read current weight inputs from the DOM (works even when Settings panel is hidden) */
+function getWeightValues() {
+  return collectWeightValues(document.querySelectorAll('.weight-input'));
 }
 
 /* Return normalised weight array for the given entries, or null (= equal weights) */
