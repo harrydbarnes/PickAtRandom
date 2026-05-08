@@ -909,7 +909,7 @@
         <input
           id="excel-import-input"
           type="file"
-          accept=".xlsx,.xlsm,.xltx,.xltm"
+          accept=".xlsx"
           aria-label="Import entries and weights from an Excel file"
           hidden
         />
@@ -1064,6 +1064,7 @@ const C_PURPLE = '#2E3047';
 const DEFAULT_WEIGHT = 1;
 const ZIP_EOCD_MIN_SIZE = 22;
 const ZIP_MAX_COMMENT_SIZE = 65535;
+/* ZIP signatures used when locating and reading XLSX archive metadata. */
 const ZIP_EOCD_SIGNATURE = 0x06054b50;
 const ZIP_CENTRAL_DIRECTORY_SIGNATURE = 0x02014b50;
 
@@ -1093,7 +1094,7 @@ function isMobileUploadOnly() {
 }
 
 function isExcelImportFile(file) {
-  return !!file && /\.(xlsx|xlsm|xltx|xltm)$/i.test(file.name || '');
+  return !!file && /\.xlsx$/i.test(file.name || '');
 }
 
 function readZipUInt16(bytes, offset) {
@@ -1203,7 +1204,7 @@ function getSheetCellText(cell, sharedStrings) {
 }
 
 function getSheetCellWeight(cell, sharedStrings) {
-  /* Allow values like "1,000" from formatted spreadsheet cells. */
+  /* Allow values like "1,000" from formatted spreadsheet cells; comma-decimal locales are not supported here. */
   const parsed = Number(getSheetCellText(cell, sharedStrings).trim().replace(/,/g, ''));
   return Number.isFinite(parsed) ? Math.max(0, parsed) : DEFAULT_WEIGHT;
 }
@@ -1255,7 +1256,7 @@ async function importExcelFile(file) {
   try {
     if (!file) return;
     if (!isExcelImportFile(file)) {
-      showToast('⚠️ Choose a supported Excel file');
+      showToast('⚠️ Choose an Excel .xlsx file');
       return;
     }
     const rows = await readExcelRows(file);
@@ -1263,7 +1264,7 @@ async function importExcelFile(file) {
     const importedWeights = Object.fromEntries(rows.map(row => [row.name, row.weight]));
 
     if (importedEntries.length < 2) {
-      showToast('⚠️ Excel file must contain at least 2 names in column A starting from row 2, after the header row');
+      showToast('⚠️ Excel file must contain at least 2 names in column A starting from row 2 (row 1 is skipped)');
       return;
     }
 
@@ -1284,8 +1285,10 @@ function updateExcelImportZone() {
   if (!zone || !copy) return;
 
   const mobileOnly = isMobileUploadOnly();
-  zone.classList.toggle('drop-enabled', !mobileOnly);
-  zone.classList.remove('drag-active');
+  const dropEnabled = !mobileOnly;
+  const modeChanged = zone.classList.contains('drop-enabled') !== dropEnabled;
+  zone.classList.toggle('drop-enabled', dropEnabled);
+  if (modeChanged) zone.classList.remove('drag-active');
   copy.textContent = mobileOnly
     ? 'Tap to choose an Excel file'
     : 'Click to choose an Excel file, or drag and drop it here';
@@ -1498,7 +1501,7 @@ function setToggle(el, on) {
   el.setAttribute('aria-checked', on ? 'true' : 'false');
 }
 
-function syncWeightsTableToCurrentEntries() {
+function refreshWeightsTableAndCollect() {
   const existingWeights = getWeightValues();
   renderWeightsTable(existingWeights);
   return collectWeightValues(document.querySelectorAll('.weight-input'));
@@ -1510,7 +1513,7 @@ function saveCurrentWheel(andSpin) {
   const rememberSpun   = document.getElementById('toggle-remember').classList.contains('on');
   const weightLabel    = document.getElementById('weight-label-input').value.trim();
   const reverseWeights = document.getElementById('toggle-reverse-weights').classList.contains('on');
-  const weights        = syncWeightsTableToCurrentEntries();
+  const weights        = refreshWeightsTableAndCollect();
 
   if (!name) {
     const inp = document.getElementById('wheel-name-input');
