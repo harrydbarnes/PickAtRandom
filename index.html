@@ -654,6 +654,80 @@
     }
     .copy-modal-actions { display: flex; gap: 0.5rem; }
 
+    /* ── Weighted Chances ───────────────────────────────────────────────────── */
+    .weights-divider {
+      border: none;
+      border-top: 1px solid rgba(42,1,33,0.18);
+      margin: 1.25rem 0 1.25rem;
+    }
+    .weights-section-label {
+      display: block;
+      font-weight: 700;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 1rem;
+    }
+    .weights-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.25rem;
+    }
+    .weights-table th {
+      font-weight: 700;
+      font-size: 0.74rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      opacity: 0.6;
+      padding: 0.2rem 0.4rem 0.5rem;
+      text-align: left;
+    }
+    .weights-table th:last-child { text-align: right; }
+    .weights-table td {
+      padding: 0.3rem 0.4rem;
+      vertical-align: middle;
+    }
+    .weights-table tbody tr:not(:last-child) td {
+      border-bottom: 1px solid rgba(42,1,33,0.07);
+    }
+    .weight-entry-name {
+      font-size: 0.9rem;
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .weight-input {
+      width: 72px;
+      padding: 0.35rem 0.5rem;
+      border: 2px solid rgba(42,1,33,0.25);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.18);
+      color: var(--purple);
+      font-size: 0.9rem;
+      font-family: var(--font);
+      outline: none;
+      text-align: center;
+      transition: border-color 0.15s;
+      -moz-appearance: textfield;
+    }
+    .weight-input:focus { border-color: var(--purple); background: rgba(255,255,255,0.28); }
+    .weight-input::-webkit-inner-spin-button,
+    .weight-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    .weight-chance-cell {
+      text-align: right;
+      font-size: 0.88rem;
+      font-weight: 700;
+      min-width: 56px;
+      color: var(--purple);
+    }
+    .weights-empty-note {
+      font-size: 0.82rem;
+      opacity: 0.5;
+      font-style: italic;
+      margin-top: 0.25rem;
+    }
+
     /* ── Responsive ─────────────────────────────────────────────────────────── */
     @media (max-width: 480px) {
       .app-header h1 { font-size: 1rem; }
@@ -730,6 +804,28 @@
         <div class="setting-toggle" id="toggle-remember" role="switch" aria-checked="false"></div>
       </div>
       <button class="btn-secondary" id="btn-reset-spun-setup" style="width:100%">🔄 Reset Spun History</button>
+
+      <hr class="weights-divider"/>
+      <span class="weights-section-label">⚖️ Weighted Chances</span>
+
+      <div class="form-group">
+        <label class="form-label" for="weight-label-input">What Do the Numbers Represent?</label>
+        <input
+          class="form-input"
+          id="weight-label-input"
+          type="text"
+          placeholder="e.g. Recs Last Month"
+          maxlength="40"
+          autocomplete="off"
+        />
+      </div>
+
+      <div class="setting-row" id="setting-row-reverse-weights">
+        <label for="toggle-reverse-weights">Reverse — lower value = higher chance</label>
+        <div class="setting-toggle" id="toggle-reverse-weights" role="switch" aria-checked="false"></div>
+      </div>
+
+      <div id="weights-table-container"></div>
     </div>
   </div>
 
@@ -940,6 +1036,11 @@ function openSetup(wheelId) {
   const on = wheel ? wheel.settings.rememberSpun : false;
   setToggle(document.getElementById('toggle-remember'), on);
 
+  const weightLabel    = wheel ? (wheel.settings.weightLabel    || '') : '';
+  const reverseWeights = wheel ? (wheel.settings.reverseWeights || false) : false;
+  document.getElementById('weight-label-input').value = weightLabel;
+  setToggle(document.getElementById('toggle-reverse-weights'), reverseWeights);
+
   switchTab('entries');
   showView('setup');
 }
@@ -1033,6 +1134,7 @@ function addEntry() {
 function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + name));
+  if (name === 'settings') renderWeightsTable();
 }
 
 function setToggle(el, on) {
@@ -1041,9 +1143,12 @@ function setToggle(el, on) {
 }
 
 function saveCurrentWheel(andSpin) {
-  const name    = document.getElementById('wheel-name-input').value.trim();
-  const entries = getEntryValues();
-  const rememberSpun = document.getElementById('toggle-remember').classList.contains('on');
+  const name           = document.getElementById('wheel-name-input').value.trim();
+  const entries        = getEntryValues();
+  const rememberSpun   = document.getElementById('toggle-remember').classList.contains('on');
+  const weightLabel    = document.getElementById('weight-label-input').value.trim();
+  const reverseWeights = document.getElementById('toggle-reverse-weights').classList.contains('on');
+  const weights        = getWeightValues();
 
   if (!name) {
     const inp = document.getElementById('wheel-name-input');
@@ -1060,9 +1165,16 @@ function saveCurrentWheel(andSpin) {
 
   if (currentWheelId) {
     const w = getWheel(currentWheelId);
-    if (w) { w.name = name; w.entries = entries; w.settings.rememberSpun = rememberSpun; }
+    if (w) {
+      w.name = name;
+      w.entries = entries;
+      w.settings.rememberSpun   = rememberSpun;
+      w.settings.weightLabel    = weightLabel;
+      w.settings.reverseWeights = reverseWeights;
+      w.settings.weights        = weights;
+    }
   } else {
-    const w = { id: uid(), name, entries, settings: { rememberSpun, spunEntries: [] } };
+    const w = { id: uid(), name, entries, settings: { rememberSpun, spunEntries: [], weightLabel, reverseWeights, weights } };
     wheels.push(w);
     currentWheelId = w.id;
   }
@@ -1092,8 +1204,9 @@ function openSpin(wheelId) {
   fitCanvas(canvas);
 
   const avail = availableEntries(wheel);
+  const spinWeights = getEffectiveWeights(avail);
   updateSpinStatus(wheel, avail);
-  drawWheel(canvas, avail, wheelRotation);
+  drawWheel(canvas, avail, wheelRotation, spinWeights);
   renderSpunChips(wheel);
 
   showView('spin');
@@ -1120,7 +1233,7 @@ function updateSpinStatus(wheel, avail) {
 }
 
 /* ─── WHEEL DRAWING ─────────────────────────────────────────────────────────── */
-function drawWheel(canvas, entries, rotation) {
+function drawWheel(canvas, entries, rotation, weights) {
   const ctx = canvas.getContext('2d');
   const W   = canvas.width;
   const H   = canvas.height;
@@ -1143,12 +1256,15 @@ function drawWheel(canvas, entries, rotation) {
     return;
   }
 
-  const N        = entries.length;
-  const segAngle = (2 * Math.PI) / N;
+  const N = entries.length;
+  /* Normalised per-segment fractions (sum = 1); fall back to equal if none provided */
+  const segWeights = (weights && weights.length === N) ? weights : entries.map(() => 1 / N);
 
+  let cumAngle = 0;
   for (let i = 0; i < N; i++) {
-    const start = rotation + i * segAngle;
-    const end   = start + segAngle;
+    const segAngle = segWeights[i] * 2 * Math.PI;
+    const start    = rotation + cumAngle;
+    const end      = start + segAngle;
 
     /* Segment fill */
     ctx.beginPath();
@@ -1197,6 +1313,8 @@ function drawWheel(canvas, entries, rotation) {
     ctx.fillText(label, R - 10, 0);
     ctx.restore();
     ctx.restore();
+
+    cumAngle += segAngle;
   }
 
   /* Outer ring */
@@ -1241,18 +1359,26 @@ function doSpin() {
   spinBtn.disabled = true;
   spinBtn.classList.add('spinning-pulse');
 
-  /* Cryptographically secure random winner */
-  const arr = new Uint32Array(1);
-  crypto.getRandomValues(arr);
-  const winnerIdx  = arr[0] % avail.length;
-  lastWinnerIdx    = winnerIdx;
-  lastWinnerName   = avail[winnerIdx];
+  /* Compute effective weights for available entries */
+  const weights = getEffectiveWeights(avail);
 
-  /* Target rotation: put winner segment under the pointer (top = 3π/2) */
-  const N           = avail.length;
-  const segAngle    = (2 * Math.PI) / N;
-  const randOffset  = (Math.random() - 0.5) * segAngle * 0.7; /* random within segment */
-  const rawTarget   = (3 * Math.PI / 2) - (winnerIdx * segAngle + segAngle / 2) - randOffset;
+  /* Cryptographically secure (weighted) random winner */
+  const winnerIdx = weights
+    ? weightedRandom(weights)
+    : (() => { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % avail.length; })();
+  lastWinnerIdx  = winnerIdx;
+  lastWinnerName = avail[winnerIdx];
+
+  /* Compute the cumulative start-angle and arc-size of the winner's segment */
+  const N = avail.length;
+  const segWeights = (weights && weights.length === N) ? weights : avail.map(() => 1 / N);
+  let cumAngleAtWinner = 0;
+  for (let i = 0; i < winnerIdx; i++) cumAngleAtWinner += segWeights[i] * 2 * Math.PI;
+  const winnerSegAngle = segWeights[winnerIdx] * 2 * Math.PI;
+
+  /* Target rotation: put centre of winner segment under the pointer (top = 3π/2) */
+  const randOffset = (Math.random() - 0.5) * winnerSegAngle * 0.7;
+  const rawTarget  = (3 * Math.PI / 2) - (cumAngleAtWinner + winnerSegAngle / 2) - randOffset;
 
   /* Forward delta from current wheel rotation, normalised to [0, 2π) so the wheel always spins forward */
   const currentAngle = wheelRotation % (2 * Math.PI);
@@ -1273,7 +1399,7 @@ function doSpin() {
     const elapsed  = now - startTime;
     const progress = Math.min(elapsed / duration, 1);
     wheelRotation  = startRot + totalDelta * easeOutQuart(progress);
-    drawWheel(canvas, avail, wheelRotation);
+    drawWheel(canvas, avail, wheelRotation, weights);
 
     if (progress < 1) {
       requestAnimationFrame(frame);
@@ -1303,7 +1429,7 @@ function onSpinComplete(wheel, avail, winnerIdx) {
 
     /* Redraw wheel with updated available entries */
     const canvas = document.getElementById('wheel-canvas');
-    drawWheel(canvas, remaining, wheelRotation);
+    drawWheel(canvas, remaining, wheelRotation, getEffectiveWeights(remaining));
   }
 
   playKazoo();
@@ -1518,6 +1644,122 @@ function selectWinner(entries) {
 // crypto.getRandomValues() is specified by the W3C
 // Web Cryptography API and is truly unpredictable.`;
 
+/* ─── WEIGHTED CHANCES ──────────────────────────────────────────────────────── */
+
+/* Render the weights table in the Settings tab using current entry values */
+function renderWeightsTable() {
+  const container = document.getElementById('weights-table-container');
+  const entries   = getEntryValues().filter(e => e.trim() !== '');
+
+  if (!entries.length) {
+    container.innerHTML = '<p class="weights-empty-note">Add entries to configure per-entry weights.</p>';
+    return;
+  }
+
+  /* Preserve values already typed in the DOM across tab switches */
+  const existing = getWeightValues();
+
+  const wheel        = getWheel(currentWheelId);
+  const savedWeights = wheel ? (wheel.settings.weights || {}) : {};
+  const labelText    = document.getElementById('weight-label-input').value.trim() || 'Weight';
+
+  const getInitialWeight = e => {
+    if (existing[e]     != null) return existing[e];
+    if (savedWeights[e] != null) return savedWeights[e];
+    return 1;
+  };
+
+  container.innerHTML = `
+    <table class="weights-table">
+      <thead>
+        <tr>
+          <th>Entry</th>
+          <th id="weights-col-header">${escHtml(labelText)}</th>
+          <th>% Chance</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${entries.map(e => `
+          <tr>
+            <td class="weight-entry-name" title="${escHtml(e)}">${escHtml(e)}</td>
+            <td><input class="weight-input" type="number" min="0" step="any"
+                       data-entry="${escHtml(e)}" value="${getInitialWeight(e)}" /></td>
+            <td class="weight-chance-cell">—</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+
+  container.querySelectorAll('.weight-input').forEach(inp => {
+    inp.addEventListener('input', updateChanceDisplay);
+  });
+  updateChanceDisplay();
+}
+
+/* Recompute and display the % Chance column */
+function updateChanceDisplay() {
+  const inputs   = Array.from(document.querySelectorAll('.weight-input'));
+  const reversed = document.getElementById('toggle-reverse-weights').classList.contains('on');
+
+  let values = inputs.map(inp => Math.max(0, parseFloat(inp.value) || 0));
+  if (reversed) {
+    values = values.map(v => (v > 0 ? 1 / v : 0));
+  }
+
+  const total = values.reduce((a, b) => a + b, 0);
+  document.querySelectorAll('.weight-chance-cell').forEach((cell, i) => {
+    cell.textContent = total > 0 ? `${(values[i] / total * 100).toFixed(1)}%` : '—';
+  });
+}
+
+/* Read current weight inputs from the DOM (works even when Settings panel is hidden) */
+function getWeightValues() {
+  const weights = {};
+  document.querySelectorAll('.weight-input').forEach(inp => {
+    const val = parseFloat(inp.value);
+    if (inp.dataset.entry != null && !isNaN(val)) weights[inp.dataset.entry] = Math.max(0, val);
+  });
+  return weights;
+}
+
+/* Return normalised weight array for the given entries, or null (= equal weights) */
+function getEffectiveWeights(entries) {
+  const wheel = getWheel(currentWheelId);
+  if (!wheel) return null;
+
+  const weightMap  = wheel.settings.weights       || {};
+  const reversed   = wheel.settings.reverseWeights || false;
+
+  /* No customisation at all → equal weights */
+  if (!reversed && Object.keys(weightMap).length === 0) return null;
+
+  let values = entries.map(e => {
+    const v = parseFloat(weightMap[e]);
+    return (!isNaN(v) && v >= 0) ? v : 1;
+  });
+
+  if (reversed) {
+    values = values.map(v => (v > 0 ? 1 / v : 0));
+  }
+
+  const total = values.reduce((a, b) => a + b, 0);
+  if (total === 0) return null; /* all zero → fall back to equal */
+
+  return values.map(v => v / total);
+}
+
+/* Crypto-secure weighted random index */
+function weightedRandom(weights) {
+  const arr = new Uint32Array(1);
+  crypto.getRandomValues(arr);
+  const r = arr[0] / 4294967296; /* uniform [0, 1) — 2^32 is exact in float64 */
+  let cumulative = 0;
+  for (let i = 0; i < weights.length; i++) {
+    cumulative += weights[i];
+    if (r < cumulative) return i;
+  }
+  return weights.length - 1; /* guard against floating-point rounding */
+}
+
 /* ─── EVENT WIRING ──────────────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
   loadWheels();
@@ -1621,6 +1863,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  document.getElementById('toggle-reverse-weights').addEventListener('click', function () {
+    setToggle(this, !this.classList.contains('on'));
+    updateChanceDisplay();
+  });
+
+  document.getElementById('setting-row-reverse-weights').addEventListener('click', e => {
+    if (e.target.id !== 'toggle-reverse-weights') {
+      const t = document.getElementById('toggle-reverse-weights');
+      setToggle(t, !t.classList.contains('on'));
+      updateChanceDisplay();
+    }
+  });
+
+  document.getElementById('weight-label-input').addEventListener('input', () => {
+    const header = document.getElementById('weights-col-header');
+    if (header) {
+      /* textContent is XSS-safe — no escaping needed here */
+      header.textContent = document.getElementById('weight-label-input').value.trim() || 'Weight';
+    }
+  });
+
   document.getElementById('btn-save-only').addEventListener('click', () => saveCurrentWheel(false));
   document.getElementById('btn-save-run') .addEventListener('click', () => saveCurrentWheel(true));
 
@@ -1643,7 +1906,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const avail = availableEntries(wheel);
     updateSpinStatus(wheel, avail);
     wheelRotation = 0;
-    drawWheel(document.getElementById('wheel-canvas'), avail, 0);
+    drawWheel(document.getElementById('wheel-canvas'), avail, 0, getEffectiveWeights(avail));
   });
 
   /* ── Popup ── */
@@ -1705,7 +1968,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!wheel) return;
     const canvas = document.getElementById('wheel-canvas');
     fitCanvas(canvas);
-    drawWheel(canvas, availableEntries(wheel), wheelRotation);
+    const avail = availableEntries(wheel);
+    drawWheel(canvas, avail, wheelRotation, getEffectiveWeights(avail));
   });
 });
 </script>
