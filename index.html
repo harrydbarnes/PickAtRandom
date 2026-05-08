@@ -1051,9 +1051,6 @@
   </div>
 </div>
 
-<!-- ExcelJS CDN -->
-<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.js"></script>
-
 <!-- canvas-confetti CDN -->
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 
@@ -1093,18 +1090,155 @@ function isExcelImportFile(file) {
   return !!file && /\.(xlsx|xlsm|xltx|xltm)$/i.test(file.name || '');
 }
 
-function getExcelWeightValue(cell) {
-  const raw = cell ? cell.value : null;
-  if (typeof raw === 'number' && Number.isFinite(raw)) return Math.max(0, raw);
-  if (raw && typeof raw === 'object' && typeof raw.result === 'number' && Number.isFinite(raw.result)) {
-    return Math.max(0, raw.result);
+function readZipUInt16(bytes, offset) {
+  return bytes[offset] | (bytes[offset + 1] << 8);
+}
+
+function readZipUInt32(bytes, offset) {
+  return (
+    bytes[offset] |
+    (bytes[offset + 1] << 8) |
+    (bytes[offset + 2] << 16) |
+    ((bytes[offset + 3] << 24) >>> 0)
+  ) >>> 0;
+}
+
+function findZipDirectory(bytes) {
+  for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 65557); i--) {
+    if (readZipUInt32(bytes, i) === 0x06054b50) return i;
+  }
+  return -1;
+}
+
+async function inflateZipEntry(bytes) {
+  if (typeof DecompressionStream === 'undefined') {
+    throw new Error('DecompressionStream unavailable');
+  }
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+async function readZipFiles(buffer) {
+  const bytes = new Uint8Array(buffer);
+  const endOffset = findZipDirectory(bytes);
+  if (endOffset < 0) throw new Error('Invalid ZIP file');
+
+  const decoder = new TextDecoder('utf-8');
+  const entryCount = readZipUInt16(bytes, endOffset + 10);
+  let cursor = readZipUInt32(bytes, endOffset + 16);
+  const files = new Map();
+
+  for (let i = 0; i < entryCount; i++) {
+    if (readZipUInt32(bytes, cursor) !== 0x02014b50) throw new Error('Invalid ZIP directory entry');
+
+    const compression = readZipUInt16(bytes, cursor + 10);
+    const compressedSize = readZipUInt32(bytes, cursor + 20);
+    const fileNameLength = readZipUInt16(bytes, cursor + 28);
+    const extraLength = readZipUInt16(bytes, cursor + 30);
+    const commentLength = readZipUInt16(bytes, cursor + 32);
+    const localHeaderOffset = readZipUInt32(bytes, cursor + 42);
+    const name = decoder.decode(bytes.subarray(cursor + 46, cursor + 46 + fileNameLength));
+
+    const localNameLength = readZipUInt16(bytes, localHeaderOffset + 26);
+    const localExtraLength = readZipUInt16(bytes, localHeaderOffset + 28);
+    const dataStart = localHeaderOffset + 30 + localNameLength + localExtraLength;
+    const compressedData = bytes.subarray(dataStart, dataStart + compressedSize);
+
+    let fileBytes;
+    if (compression === 0) {
+      fileBytes = compressedData;
+    } else if (compression === 8) {
+      fileBytes = await inflateZipEntry(compressedData);
+    } else {
+      throw new Error('Unsupported XLSX compression');
+    }
+
+    files.set(name, decoder.decode(fileBytes));
+    cursor += 46 + fileNameLength + extraLength + commentLength;
   }
 
-  const text = cell && typeof cell.text === 'string'
-    ? cell.text.trim().replace(/,/g, '')
-    : '';
-  const parsed = Number(text);
+  return files;
+}
+
+function parseXmlDocument(text) {
+  const xml = new DOMParser().parseFromString(text, 'application/xml');
+  if (xml.querySelector('parsererror')) throw new Error('Invalid XML');
+  return xml;
+}
+
+function resolveZipPath(basePath, targetPath) {
+  if (!targetPath) return '';
+  if (targetPath.startsWith('/')) return targetPath.slice(1);
+
+  const parts = basePath.split('/');
+  parts.pop();
+  targetPath.split('/').forEach(part => {
+    if (!part || part === '.') return;
+    if (part === '..') parts.pop();
+    else parts.push(part);
+  });
+  return parts.join('/');
+}
+
+function getSharedStringValue(node) {
+  return Array.from(node.getElementsByTagName('t')).map(t => t.textContent || '').join('');
+}
+
+function getSheetCellText(cell, sharedStrings) {
+  const type = cell.getAttribute('t') || '';
+  if (type === 'inlineStr') return getSharedStringValue(cell);
+  if (type === 's') {
+    const index = Number(cell.getElementsByTagName('v')[0]?.textContent || -1);
+    return sharedStrings[index] || '';
+  }
+  return cell.getElementsByTagName('v')[0]?.textContent || '';
+}
+
+function getSheetCellWeight(cell, sharedStrings) {
+  const parsed = Number(getSheetCellText(cell, sharedStrings).trim().replace(/,/g, ''));
   return Number.isFinite(parsed) ? Math.max(0, parsed) : 1;
+}
+
+async function readExcelRows(file) {
+  const files = await readZipFiles(await file.arrayBuffer());
+  const workbookPath = 'xl/workbook.xml';
+  const workbookRelsPath = 'xl/_rels/workbook.xml.rels';
+  if (!files.has(workbookPath) || !files.has(workbookRelsPath)) {
+    throw new Error('Missing workbook metadata');
+  }
+
+  const workbookXml = parseXmlDocument(files.get(workbookPath));
+  const workbookRelsXml = parseXmlDocument(files.get(workbookRelsPath));
+  const firstSheet = workbookXml.getElementsByTagName('sheet')[0];
+  if (!firstSheet) throw new Error('Missing worksheet');
+
+  const relId = firstSheet.getAttribute('r:id');
+  const relationship = Array.from(workbookRelsXml.getElementsByTagName('Relationship'))
+    .find(rel => rel.getAttribute('Id') === relId);
+  const sheetPath = resolveZipPath(workbookPath, relationship && relationship.getAttribute('Target'));
+  if (!sheetPath || !files.has(sheetPath)) throw new Error('Worksheet file not found');
+
+  const sharedStrings = files.has('xl/sharedStrings.xml')
+    ? Array.from(parseXmlDocument(files.get('xl/sharedStrings.xml')).getElementsByTagName('si')).map(getSharedStringValue)
+    : [];
+
+  const sheetXml = parseXmlDocument(files.get(sheetPath));
+  return Array.from(sheetXml.getElementsByTagName('row'))
+    .map(row => {
+      const rowNumber = Number(row.getAttribute('r') || 0);
+      if (rowNumber < 2) return null;
+
+      let name = '';
+      let weight = 1;
+      Array.from(row.getElementsByTagName('c')).forEach(cell => {
+        const ref = (cell.getAttribute('r') || '').replace(/[0-9]/g, '');
+        if (ref === 'A') name = getSheetCellText(cell, sharedStrings).trim();
+        if (ref === 'B') weight = getSheetCellWeight(cell, sharedStrings);
+      });
+
+      return name ? { name, weight } : null;
+    })
+    .filter(Boolean);
 }
 
 function syncImportedWeights(weightMap) {
@@ -1122,28 +1256,9 @@ async function importExcelFile(file) {
       showToast('⚠️ Choose an Excel .xlsx file');
       return;
     }
-    if (typeof ExcelJS === 'undefined') {
-      showToast('⚠️ Excel import is unavailable right now');
-      return;
-    }
-
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(await file.arrayBuffer());
-
-    const sheet = workbook.worksheets[0];
-    if (!sheet) {
-      showToast('⚠️ No worksheet found in that file');
-      return;
-    }
-
-    const importedEntries = [];
-    const importedWeights = {};
-    for (let rowNumber = 2; rowNumber <= sheet.rowCount; rowNumber++) {
-      const name = sheet.getCell(rowNumber, 1).text.trim();
-      if (!name) continue;
-      importedEntries.push(name);
-      importedWeights[name] = getExcelWeightValue(sheet.getCell(rowNumber, 2));
-    }
+    const rows = await readExcelRows(file);
+    const importedEntries = rows.map(row => row.name);
+    const importedWeights = Object.fromEntries(rows.map(row => [row.name, row.weight]));
 
     if (importedEntries.length < 2) {
       showToast('⚠️ Add at least 2 names in column A from row 2');
