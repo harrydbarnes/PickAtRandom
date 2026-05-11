@@ -2454,6 +2454,8 @@ function drawWheel(canvas, entries, rotation, weights) {
   const cx  = W / 2;
   const cy  = H / 2;
   const R   = Math.min(cx, cy) - 4;
+  const HUB_RADIUS = 22;
+  const CENTER_DOT_RADIUS = 8;
 
   ctx.clearRect(0, 0, W, H);
 
@@ -2505,20 +2507,20 @@ function drawWheel(canvas, entries, rotation, weights) {
     ctx.textAlign    = 'left';
     ctx.textBaseline = 'middle';
 
-    /* Clip text to segment radial area */
-    const minTextStart   = 42; /* Keep labels clear of the hub. */
+    /* Keep labels outside the 22px hub so short names do not bunch into the centre. */
+    const minTextStart = HUB_RADIUS + 20;
     const minEdgePadding = 12; /* Keep labels away from the outer ring. */
-    const minTextWidth   = 24; /* Keep enough room for short readable labels. */
-    const fallbackTextStart = 28;
+    const minTextWidth = 24; /* Keep enough room for short readable labels. */
+    const fallbackTextStart = HUB_RADIUS + 8;
     const fallbackEdgePadding = 6;
     const fallbackTextWidth = 12;
     const textTruncationPadding = 20;
-    let textStart        = Math.max(minTextStart, R * 0.22);
+    let textStart = Math.max(minTextStart, R * 0.22);
     let edgePadding      = Math.max(minEdgePadding, R * 0.08);
     let maxTextWidth     = R - textStart - edgePadding;
 
     if (maxTextWidth < minTextWidth) {
-      textStart    = Math.max(fallbackTextStart, R * 0.08);
+      textStart    = Math.max(fallbackTextStart, R * 0.16);
       edgePadding  = Math.max(fallbackEdgePadding, R * 0.04);
       maxTextWidth = Math.max(fallbackTextWidth, R - textStart - edgePadding);
     }
@@ -2555,7 +2557,7 @@ function drawWheel(canvas, entries, rotation, weights) {
 
   /* Hub */
   ctx.beginPath();
-  ctx.arc(cx, cy, 22, 0, 2 * Math.PI);
+  ctx.arc(cx, cy, HUB_RADIUS, 0, 2 * Math.PI);
   ctx.fillStyle = C_PURPLE;
   ctx.fill();
   ctx.strokeStyle = C_GREEN;
@@ -2564,7 +2566,7 @@ function drawWheel(canvas, entries, rotation, weights) {
 
   /* Centre dot */
   ctx.beginPath();
-  ctx.arc(cx, cy, 8, 0, 2 * Math.PI);
+  ctx.arc(cx, cy, CENTER_DOT_RADIUS, 0, 2 * Math.PI);
   ctx.fillStyle = C_GREEN;
   ctx.fill();
 }
