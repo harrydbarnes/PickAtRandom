@@ -2758,7 +2758,7 @@ function openRecentHistory() {
   const backdrop = document.getElementById('recent-history-backdrop');
   const panel = document.getElementById('recent-history-panel');
   if (!wheel || !panel || !backdrop) {
-    showToast('⚠️ Save this wheel first to view spin history');
+    showToast('⚠️ Please save this wheel before viewing spin history');
     return;
   }
   clearTimeout(recentHistoryHideTimeoutId);
