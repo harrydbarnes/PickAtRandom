@@ -1664,8 +1664,11 @@ function drawWheel(canvas, entries, rotation, weights) {
     ctx.textBaseline = 'middle';
 
     /* Clip text to segment radial area */
-    const textStart = Math.max(18, R * 0.12);
-    const maxTextW  = Math.max(24, R - textStart - Math.max(12, R * 0.08));
+    const minTextStart = 18;
+    const minTextWidth = 24;
+    const minEdgePad   = 12;
+    const textStart    = Math.max(minTextStart, R * 0.12);
+    const maxTextW     = Math.max(minTextWidth, R - textStart - Math.max(minEdgePad, R * 0.08));
     ctx.save();
     ctx.beginPath();
     ctx.rect(textStart, -fontSize * 0.9, maxTextW, fontSize * 1.8);
