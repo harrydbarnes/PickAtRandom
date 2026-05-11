@@ -2457,6 +2457,7 @@ function drawWheel(canvas, entries, rotation, weights) {
   const R   = Math.min(cx, cy) - 4;
   const HUB_RADIUS = 22;
   const CENTER_DOT_RADIUS = 8;
+  const LABEL_HUB_OFFSET = 20;
 
   ctx.clearRect(0, 0, W, H);
 
@@ -2508,8 +2509,8 @@ function drawWheel(canvas, entries, rotation, weights) {
     ctx.textAlign    = 'left';
     ctx.textBaseline = 'middle';
 
-    /* Keep labels outside the 22px hub so short names do not bunch into the centre. */
-    const minTextStart = HUB_RADIUS + 20;
+    /* Keep labels outside the 22px hub so short names do not bunch into the center. */
+    const minTextStart = HUB_RADIUS + LABEL_HUB_OFFSET;
     const minEdgePadding = 12; /* Keep labels away from the outer ring. */
     const minTextWidth = 24; /* Keep enough room for short readable labels. */
     const fallbackTextStart = HUB_RADIUS + 8;
