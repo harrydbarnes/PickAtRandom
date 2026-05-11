@@ -1692,29 +1692,44 @@ function drawWheel(canvas, entries, rotation, weights) {
     ctx.fillStyle    = textColor;
     const fontSize   = Math.max(10, Math.min(15, R * 0.125));
     ctx.font         = `bold ${fontSize}px system-ui, sans-serif`;
-    ctx.textAlign    = 'right';
+    ctx.textAlign    = 'left';
     ctx.textBaseline = 'middle';
 
     /* Clip text to segment radial area */
-    const maxTextW = R * 0.68;
+    const minTextStart   = 18; /* Keep labels clear of the hub. */
+    const minEdgePadding = 12; /* Keep labels away from the outer ring. */
+    const minTextWidth   = 24; /* Keep enough room for short readable labels. */
+    const fallbackTextStart = 8;
+    const fallbackEdgePadding = 6;
+    const fallbackTextWidth = 12;
+    const textTruncationPadding = 20;
+    let textStart        = Math.max(minTextStart, R * 0.12);
+    let edgePadding      = Math.max(minEdgePadding, R * 0.08);
+    let maxTextWidth     = R - textStart - edgePadding;
+
+    if (maxTextWidth < minTextWidth) {
+      textStart    = Math.max(fallbackTextStart, R * 0.08);
+      edgePadding  = Math.max(fallbackEdgePadding, R * 0.04);
+      maxTextWidth = Math.max(fallbackTextWidth, R - textStart - edgePadding);
+    }
     ctx.save();
     ctx.beginPath();
-    ctx.rect(18, -fontSize * 0.9, maxTextW, fontSize * 1.8);
+    ctx.rect(textStart, -fontSize * 0.9, maxTextWidth, fontSize * 1.8);
     ctx.clip();
 
     /* Binary-search truncation — O(log n) measureText calls vs linear scan */
     let label = entries[i];
-    if (ctx.measureText(label).width > maxTextW - 20) {
+    if (ctx.measureText(label).width > maxTextWidth - textTruncationPadding) {
       let lo = 2, hi = label.length;
       while (lo < hi) {
         const mid = Math.ceil((lo + hi) / 2);
-        if (ctx.measureText(label.slice(0, mid)).width <= maxTextW - 20) { lo = mid; }
+        if (ctx.measureText(label.slice(0, mid)).width <= maxTextWidth - textTruncationPadding) { lo = mid; }
         else { hi = mid - 1; }
       }
       label = label.slice(0, lo - 1) + '…';
     }
 
-    ctx.fillText(label, R - 10, 0);
+    ctx.fillText(label, textStart, 0);
     ctx.restore();
     ctx.restore();
 
