@@ -1243,7 +1243,7 @@ const ZIP_MAX_COMMENT_SIZE = 65535;
 const MAX_RECENT_CHOICES = 25;
 const RECENT_HISTORY_BUTTON_LABEL = 'Recently Chosen';
 const RECENT_HISTORY_BUTTON_ICON = '🕘';
-const MAX_FUTURE_TIMESTAMP_DRIFT_MS = 5 * 60 * 1000;
+const FUTURE_TIMESTAMP_TOLERANCE_MS = 5 * 60 * 1000;
 /* ZIP signatures used when locating and reading XLSX archive metadata. */
 const ZIP_EOCD_SIGNATURE = 0x06054b50;
 const ZIP_CENTRAL_DIRECTORY_SIGNATURE = 0x02014b50;
@@ -1290,7 +1290,7 @@ function clampString(value, maxLength) {
 function normalizeTimestamp(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  if (date.getTime() > Date.now() + MAX_FUTURE_TIMESTAMP_DRIFT_MS) return null;
+  if (date.getTime() > Date.now() + FUTURE_TIMESTAMP_TOLERANCE_MS) return null;
   return date.toISOString();
 }
 
@@ -2240,11 +2240,11 @@ function renderRecentHistory(wheel) {
     : 'No recent selections yet.';
 
   list.innerHTML = items.map(item => {
-    const formattedTime = formatRecentSelectionTime(item.chosenAt);
+    const formattedTime = formatRecentSelectionTime(item.chosenAt) || 'Unknown time';
     return `
       <li class="recent-history-item">
         <span class="recent-history-name">${escHtml(item.name)}</span>
-        <span class="recent-history-time" aria-label="Selected on ${escHtml(formattedTime)}">${escHtml(formattedTime)}</span>
+        <span class="recent-history-time"><span class="sr-only">Selected on </span>${escHtml(formattedTime)}</span>
       </li>
     `;
   }).join('');
@@ -2362,7 +2362,8 @@ function shareResult() {
   const wheel = getWheel(currentWheelId);
   if (!wheel || lastWinnerIdx < 0) return;
 
-  /* v2 shares the full wheel state so recipients can keep spinning and pass updated history back without a server. */
+  /* Share payload versions:
+     v1 replayed a single result only; v2 also includes the full wheel state so recipients can keep spinning and share updates back. */
   const payload = {
     version:     2,
     name:        wheel.name,
