@@ -558,6 +558,79 @@
     .spin-btn.spinning-pulse {
       animation: pulse 0.6s ease-in-out infinite alternate;
     }
+    .spin-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+      width: 100%;
+    }
+    .recent-btn {
+      background: rgba(46,48,71,0.08);
+      color: var(--purple);
+      border: 2px solid rgba(46,48,71,0.32);
+      border-radius: 50px;
+      padding: 0.7rem 1.4rem;
+      font-size: 0.95rem;
+      font-weight: 800;
+      font-family: var(--font);
+      cursor: pointer;
+      transition: background 0.15s, transform 0.15s, border-color 0.15s;
+    }
+    .recent-btn:hover { background: rgba(46,48,71,0.14); transform: translateY(-1px); border-color: rgba(46,48,71,0.48); }
+    .recent-btn[aria-expanded="true"] { background: var(--purple); color: var(--green); border-color: var(--purple); }
+    .recent-history-panel {
+      width: min(100%, 440px);
+      background: rgba(46,48,71,0.1);
+      border: 1px solid rgba(46,48,71,0.18);
+      border-radius: 18px;
+      padding: 1rem;
+    }
+    .recent-history-panel[hidden] { display: none; }
+    .recent-history-title {
+      font-size: 0.9rem;
+      font-weight: 800;
+      margin-bottom: 0.75rem;
+      text-align: center;
+    }
+    .recent-history-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+    .recent-history-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 1rem;
+      padding-bottom: 0.65rem;
+      border-bottom: 1px solid rgba(46,48,71,0.12);
+    }
+    .recent-history-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .recent-history-name { font-weight: 800; }
+    .recent-history-time {
+      font-size: 0.8rem;
+      opacity: 0.7;
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .recent-history-empty {
+      font-size: 0.9rem;
+      opacity: 0.7;
+      text-align: center;
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
     @keyframes pulse {
       from { box-shadow: 0 4px 20px rgba(0,0,0,0.18); }
       to   { box-shadow: 0 4px 40px rgba(46,48,71,0.5); }
@@ -1084,7 +1157,19 @@
       <canvas id="wheel-canvas" width="360" height="360"></canvas>
     </div>
 
-    <button class="spin-btn" id="btn-spin">🎰 Spin!</button>
+    <div class="spin-actions">
+      <button class="spin-btn" id="btn-spin">🎰 Spin!</button>
+      <button class="recent-btn" id="btn-toggle-recent" type="button" aria-expanded="false" aria-controls="recent-history-panel" aria-describedby="recent-history-status">
+        <span aria-hidden="true" id="recent-history-button-text">🕘 Recently Chosen</span>
+      </button>
+    </div>
+    <span class="sr-only" id="recent-history-status" aria-live="polite">No recent selections yet.</span>
+
+    <div class="recent-history-panel" id="recent-history-panel" hidden>
+      <div class="recent-history-title">Previous spins</div>
+      <p class="recent-history-empty" id="recent-history-empty">No one has been chosen yet.</p>
+      <ul class="recent-history-list" id="recent-history-list"></ul>
+    </div>
 
     <p class="spin-status" id="spin-status"></p>
 
@@ -1180,6 +1265,11 @@ const SHARE_SPIN_BASE_DURATION_MS = 4200;
 const SHARE_SPIN_DURATION_VARIANCE_MS = 800;
 const ZIP_EOCD_MIN_SIZE = 22;
 const ZIP_MAX_COMMENT_SIZE = 65535;
+const MAX_RECENT_CHOICES = 25;
+const RECENT_HISTORY_BUTTON_LABEL = 'Recently Chosen';
+const RECENT_HISTORY_BUTTON_ICON = '🕘';
+const FUTURE_TIMESTAMP_TOLERANCE_MS = 5 * 60 * 1000;
+const RECENT_SELECTION_TIME_PLACEHOLDER = 'Unknown time';
 /* ZIP signatures used when locating and reading XLSX archive metadata. */
 const ZIP_EOCD_SIGNATURE = 0x06054b50;
 const ZIP_CENTRAL_DIRECTORY_SIGNATURE = 0x02014b50;
@@ -1199,7 +1289,7 @@ let shareWheelRotation = 0;
 let sharedResultData   = null;
 let isShareSpinning    = false;
 const WHEEL_DISPLAY_SEPARATOR = ' — ';
-const WHEEL_PHRASE_SEPARATOR = ' ';
+const WHEEL_SELECTION_SEPARATOR = ' ';
 
 /* ─── Utilities ─────────────────────────────────────────────────────────────── */
 function uid() {
@@ -1225,6 +1315,10 @@ function getWheelTaskTitle(wheel) {
   return (wheel?.taskTitle || wheel?.name || '').trim();
 }
 
+function getRawWheelTaskTitle(rawWheel) {
+  return clampString(String(rawWheel?.taskTitle ?? rawWheel?.name ?? ''), 80);
+}
+
 function getWheelActivity(wheel) {
   return (wheel?.activity || '').trim();
 }
@@ -1239,8 +1333,102 @@ function getWheelDisplayName(wheel) {
 function getWheelSelectionText(wheel) {
   const activity = getWheelActivity(wheel);
   const taskTitle = getWheelTaskTitle(wheel);
-  if (activity && taskTitle) return `${activity}${WHEEL_PHRASE_SEPARATOR}${taskTitle}`;
+  if (activity && taskTitle) return `${activity}${WHEEL_SELECTION_SEPARATOR}${taskTitle}`;
   return taskTitle || activity || 'take on this task';
+}
+
+function clampString(value, maxLength) {
+  return typeof value === 'string' ? value.slice(0, maxLength) : '';
+}
+
+function normalizeTimestamp(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  if (date.getTime() > Date.now() + FUTURE_TIMESTAMP_TOLERANCE_MS) return null;
+  return date.toISOString();
+}
+
+function normalizeWeightArray(weights, entryCount) {
+  if (!Array.isArray(weights) || weights.length !== entryCount) return null;
+  const normalized = weights.map(v => Number(v));
+  if (normalized.some(v => !Number.isFinite(v) || v < 0)) return null;
+  const total = normalized.reduce((sum, value) => sum + value, 0);
+  if (total <= 0) return null;
+  return normalized.map(value => value / total);
+}
+
+function normalizeWheel(rawWheel) {
+  const rawSettings = rawWheel && typeof rawWheel.settings === 'object' && rawWheel.settings ? rawWheel.settings : {};
+  const activity = clampString(String(rawWheel?.activity ?? ''), 30);
+  const taskTitle = getRawWheelTaskTitle(rawWheel);
+  const entries = Array.isArray(rawWheel?.entries)
+    ? rawWheel.entries.slice(0, 250).map(entry => clampString(String(entry ?? ''), 200))
+    : [];
+  const nonEmptyEntries = entries.filter(entry => entry.trim() !== '');
+  const allowedEntries = new Set(nonEmptyEntries);
+  const rawWeights = rawSettings.weights && typeof rawSettings.weights === 'object' ? rawSettings.weights : {};
+  const weights = {};
+
+  nonEmptyEntries.forEach(entry => {
+    const value = Number(rawWeights[entry]);
+    if (Number.isFinite(value) && value >= 0) weights[entry] = value;
+  });
+
+  const spunEntries = Array.isArray(rawSettings.spunEntries)
+    ? [...new Set(rawSettings.spunEntries
+      .map(entry => clampString(String(entry ?? ''), 200))
+      .filter(entry => entry && allowedEntries.has(entry)))]
+    : [];
+
+  const recentSelections = Array.isArray(rawSettings.recentSelections)
+    ? rawSettings.recentSelections
+      .map(item => {
+        const name = clampString(String(item?.name ?? ''), 200);
+        const chosenAt = normalizeTimestamp(item?.chosenAt);
+        if (!name || !chosenAt || !allowedEntries.has(name)) return null;
+        return { name, chosenAt };
+      })
+      .filter(Boolean)
+      .slice(-MAX_RECENT_CHOICES)
+    : [];
+
+  return {
+    id: clampString(String(rawWheel?.id ?? ''), 120) || uid(),
+    /* Keep legacy "name" populated so older stored/shared wheel code paths still read the task title correctly. */
+    name: taskTitle,
+    activity,
+    taskTitle,
+    entries,
+    settings: {
+      rememberSpun: !!rawSettings.rememberSpun,
+      spunEntries,
+      recentSelections,
+      weightLabel: clampString(String(rawSettings.weightLabel ?? ''), 40),
+      reverseWeights: !!rawSettings.reverseWeights,
+      weights,
+    },
+  };
+}
+
+function upsertWheel(rawWheel) {
+  const wheel = normalizeWheel(rawWheel);
+  const index = wheels.findIndex(existing => existing.id === wheel.id);
+  if (index >= 0) wheels[index] = wheel;
+  else wheels.push(wheel);
+  return wheel;
+}
+
+function formatRecentSelectionTime(chosenAt) {
+  const date = new Date(chosenAt);
+  if (Number.isNaN(date.getTime())) return RECENT_SELECTION_TIME_PLACEHOLDER;
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
+}
+
+function getRecentHistoryButtonText() {
+  return `${RECENT_HISTORY_BUTTON_ICON} ${RECENT_HISTORY_BUTTON_LABEL}`;
 }
 
 function isMobileUploadOnly() {
@@ -1455,11 +1643,8 @@ function saveWheels() {
 
 function loadWheels() {
   try {
-    wheels = JSON.parse(localStorage.getItem('par_wheels') || '[]').map(({ name, ...wheel }) => ({
-      ...wheel,
-      /* Legacy wheels stored the task title in "name"; hydrate "taskTitle" on load. */
-      taskTitle: wheel.taskTitle || name || '',
-    }));
+    const parsed = JSON.parse(localStorage.getItem('par_wheels') || '[]');
+    wheels = Array.isArray(parsed) ? parsed.map(normalizeWheel) : [];
   } catch (_) {
     wheels = [];
   }
@@ -1750,22 +1935,23 @@ function saveCurrentWheel(andSpin) {
     return;
   }
 
-  if (currentWheelId) {
-    const w = getWheel(currentWheelId);
-    if (w) {
-      w.activity = activity;
-      w.taskTitle = taskTitle;
-      w.entries = entries;
-      w.settings.rememberSpun   = rememberSpun;
-      w.settings.weightLabel    = weightLabel;
-      w.settings.reverseWeights = reverseWeights;
-      w.settings.weights        = weights;
-    }
-  } else {
-    const w = { id: uid(), activity, taskTitle, entries, settings: { rememberSpun, spunEntries: [], weightLabel, reverseWeights, weights } };
-    wheels.push(w);
-    currentWheelId = w.id;
-  }
+  const existingWheel = currentWheelId ? getWheel(currentWheelId) : null;
+  const wheel = upsertWheel({
+    id: existingWheel?.id || uid(),
+    activity,
+    taskTitle,
+    name: taskTitle,
+    entries,
+    settings: {
+      rememberSpun,
+      spunEntries: existingWheel?.settings?.spunEntries || [],
+      recentSelections: existingWheel?.settings?.recentSelections || [],
+      weightLabel,
+      reverseWeights,
+      weights,
+    },
+  });
+  currentWheelId = wheel.id;
   saveWheels();
 
   if (andSpin) {
@@ -1810,6 +1996,8 @@ function openSpin(wheelId) {
   const spinWeights = getEffectiveWeights(avail);
   updateSpinStatus(wheel, avail);
   drawWheel(canvas, avail, wheelRotation, spinWeights);
+  closeRecentHistory();
+  renderRecentHistory(wheel);
   renderSpunChips(wheel);
 
   showView('spin');
@@ -2065,13 +2253,16 @@ function doSpin() {
 
 function onSpinComplete(wheel, avail, winnerIdx) {
   const name = avail[winnerIdx];
+  wheel.settings.recentSelections = [
+    ...(wheel.settings.recentSelections || []),
+    { name, chosenAt: new Date().toISOString() },
+  ].slice(-MAX_RECENT_CHOICES);
 
   /* Record spun if setting is on */
   if (wheel.settings.rememberSpun) {
     if (!wheel.settings.spunEntries.includes(name)) {
       wheel.settings.spunEntries.push(name);
     }
-    saveWheels();
     renderSpunChips(wheel);
 
     const remaining = availableEntries(wheel);
@@ -2082,9 +2273,55 @@ function onSpinComplete(wheel, avail, winnerIdx) {
     drawWheel(canvas, remaining, wheelRotation, getEffectiveWeights(remaining));
   }
 
+  saveWheels();
+  renderRecentHistory(wheel);
+
   playKazoo();
   fireConfetti();
   showResultPopup(name, wheel);
+}
+
+function closeRecentHistory() {
+  const button = document.getElementById('btn-toggle-recent');
+  const panel = document.getElementById('recent-history-panel');
+  if (!button || !panel) return;
+  button.setAttribute('aria-expanded', 'false');
+  panel.hidden = true;
+}
+
+function renderRecentHistory(wheel) {
+  const list = document.getElementById('recent-history-list');
+  const empty = document.getElementById('recent-history-empty');
+  const button = document.getElementById('btn-toggle-recent');
+  const buttonText = document.getElementById('recent-history-button-text');
+  const status = document.getElementById('recent-history-status');
+  const items = (wheel.settings.recentSelections || []).slice().reverse();
+
+  if (buttonText) buttonText.textContent = getRecentHistoryButtonText();
+  if (button) button.setAttribute('aria-label', RECENT_HISTORY_BUTTON_LABEL);
+  if (status) status.textContent = items.length
+    ? `${items.length} recent selection${items.length === 1 ? '' : 's'} available.`
+    : 'No recent selections yet.';
+
+  list.innerHTML = items.map(item => {
+    const formattedTime = formatRecentSelectionTime(item.chosenAt);
+    return `
+      <li class="recent-history-item">
+        <span class="recent-history-name">${escHtml(item.name)}</span>
+        <span class="recent-history-time"><span class="sr-only">Selected on </span>${escHtml(formattedTime)}</span>
+      </li>
+    `;
+  }).join('');
+  empty.hidden = items.length > 0;
+}
+
+function toggleRecentHistory() {
+  const button = document.getElementById('btn-toggle-recent');
+  const panel = document.getElementById('recent-history-panel');
+  if (!button || !panel) return;
+  const expanded = button.getAttribute('aria-expanded') === 'true';
+  button.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+  panel.hidden = expanded;
 }
 
 function renderSpunChips(wheel) {
@@ -2189,13 +2426,18 @@ function shareResult() {
   const wheel = getWheel(currentWheelId);
   if (!wheel || lastWinnerIdx < 0) return;
 
+  /* Share payload versions:
+     v1 replayed a single result only; v2 also includes the full wheel state so recipients can keep spinning and share updates back. */
   const payload = {
+    version:     2,
+    name:        getWheelTaskTitle(wheel),
     activity:    getWheelActivity(wheel),
     taskTitle:   getWheelTaskTitle(wheel),
     entries:     lastSpinEntries,
     winnerIndex: lastWinnerIdx,
     winnerName:  lastWinnerName,
     weights:     lastSpinWeights,
+    wheel:       normalizeWheel(wheel),
   };
 
   try {
@@ -2216,26 +2458,48 @@ function loadShareView() {
   try {
     const encoded = location.hash.slice(7);
     const data    = JSON.parse(decodeURIComponent(atob(encoded)));
-    if (!Array.isArray(data.entries) || data.entries.length < 2) return false;
-    if (!Number.isInteger(data.winnerIndex) || data.winnerIndex < 0 || data.winnerIndex >= data.entries.length) return false;
+    const entries = Array.isArray(data.entries)
+      ? data.entries.slice(0, 250).map(entry => clampString(String(entry ?? ''), 200)).filter(entry => entry.trim() !== '')
+      : [];
+    const weights = normalizeWeightArray(data.weights, entries.length);
+    const winnerIndex = Number.isInteger(data.winnerIndex) ? data.winnerIndex : -1;
+    const winnerName = clampString(String(data.winnerName ?? ''), 200);
+    const sharedWheel = data.wheel ? normalizeWheel(data.wheel) : null;
+    const activity = clampString(String(data.activity ?? sharedWheel?.activity ?? ''), 30);
+    const taskTitle = getRawWheelTaskTitle({ taskTitle: data.taskTitle ?? sharedWheel?.taskTitle, name: data.name ?? sharedWheel?.name });
 
-    sharedResultData = data;
+    if (entries.length < 2) return false;
+    if (winnerIndex < 0 || winnerIndex >= entries.length) return false;
+
+    sharedResultData = {
+      entries,
+      weights,
+      winnerIndex,
+      winnerName: winnerName || entries[winnerIndex],
+      activity,
+      taskTitle,
+      name: taskTitle,
+      wheel: sharedWheel,
+    };
     shareWheelRotation = 0;
     isShareSpinning = false;
 
     const canvas = document.getElementById('share-wheel-canvas');
     fitShareCanvas(canvas);
-    drawWheel(canvas, data.entries, shareWheelRotation, data.weights);
+    drawWheel(canvas, sharedResultData.entries, shareWheelRotation, sharedResultData.weights);
     document.getElementById('share-result-box').hidden = true;
     document.getElementById('share-spin-status').textContent = 'Spinning the wheel...';
+    document.getElementById('btn-create-own').textContent = sharedResultData.wheel
+      ? '🎰 Spin This Wheel'
+      : '🎡 Create Your Own Wheel';
 
     showView('share');
     requestAnimationFrame(() => {
       if (!sharedResultData || isShareSpinning) return;
       isShareSpinning = true;
 
-      const segWeights = getSegmentWeights(data.entries, data.weights);
-      const targetRotation = getWinnerCenterRotation(segWeights, data.winnerIndex);
+      const segWeights = getSegmentWeights(sharedResultData.entries, sharedResultData.weights);
+      const targetRotation = getWinnerCenterRotation(segWeights, sharedResultData.winnerIndex);
       const delta = getPositiveAngleDelta(shareWheelRotation, targetRotation);
       const extraSpins = getRandomExtraSpins(SHARE_MIN_EXTRA_SPINS_COUNT, SHARE_MAX_EXTRA_SPINS_COUNT);
       const totalDelta = extraSpins * 2 * Math.PI + delta;
@@ -2249,7 +2513,7 @@ function loadShareView() {
         const elapsed = now - startTime;
         const progress = Math.min(elapsed / duration, 1);
         shareWheelRotation = startRot + totalDelta * easeOutQuart(progress);
-        drawWheel(canvas, data.entries, shareWheelRotation, data.weights);
+        drawWheel(canvas, sharedResultData.entries, shareWheelRotation, sharedResultData.weights);
 
         if (progress < 1) {
           requestAnimationFrame(frame);
@@ -2258,8 +2522,8 @@ function loadShareView() {
 
         canvas.classList.remove('spinning');
         isShareSpinning = false;
-        document.getElementById('share-winner-name').textContent = `🏆 ${data.winnerName}`;
-        document.getElementById('share-wheel-label').textContent = `was selected to: ${getWheelSelectionText(data)}`;
+        document.getElementById('share-winner-name').textContent = `🏆 ${sharedResultData.winnerName}`;
+        document.getElementById('share-wheel-label').textContent = `was selected to: ${getWheelSelectionText(sharedResultData)}`;
         document.getElementById('share-result-box').hidden = false;
         document.getElementById('share-spin-status').textContent = '';
       }
@@ -2270,6 +2534,22 @@ function loadShareView() {
   } catch (_) {
     return false;
   }
+}
+
+function importSharedWheel() {
+  if (!sharedResultData?.wheel) {
+    history.pushState('', document.title, location.pathname);
+    currentWheelId = null;
+    openSetup(null);
+    return;
+  }
+
+  const wheel = upsertWheel(sharedResultData.wheel);
+  saveWheels();
+  renderHome();
+  history.replaceState('', document.title, location.pathname);
+  openSpin(wheel.id);
+  showToast('🔄 Shared wheel loaded');
 }
 
 /* ─── TOAST ─────────────────────────────────────────────────────────────────── */
@@ -2454,10 +2734,11 @@ document.addEventListener('DOMContentLoaded', () => {
   loadWheels();
 
   /* Share link takes priority over normal home view */
-  if (loadShareView()) return;
-
-  renderHome();
-  showView('home');
+  const loadedShareView = loadShareView();
+  if (!loadedShareView) {
+    renderHome();
+    showView('home');
+  }
 
   document.getElementById('random-code-display').textContent = RANDOM_CODE;
 
@@ -2629,6 +2910,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-edit-wheel').addEventListener('click', () => openSetup(currentWheelId));
 
   document.getElementById('btn-spin').addEventListener('click', doSpin);
+  document.getElementById('btn-toggle-recent').addEventListener('click', toggleRecentHistory);
 
   document.getElementById('btn-reset-from-spin').addEventListener('click', () => {
     const wheel = getWheel(currentWheelId);
@@ -2660,6 +2942,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ── Share view ── */
   document.getElementById('btn-create-own').addEventListener('click', () => {
+    if (sharedResultData?.wheel) {
+      importSharedWheel();
+      return;
+    }
     history.pushState('', document.title, location.pathname);
     currentWheelId = null;
     openSetup(null);
