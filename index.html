@@ -1579,6 +1579,8 @@ function openSpin(wheelId) {
   wheelRotation  = 0;
   lastWinnerIdx  = -1;
   lastWinnerName = '';
+  lastSpinEntries = [];
+  lastSpinWeights = null;
 
   const wheel = getWheel(wheelId);
   if (!wheel) return;
