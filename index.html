@@ -12,6 +12,7 @@
       /* sRGB fallbacks first; display-p3 overrides where supported */
       --green: #3BBA9C;
       --green: color(display-p3 0.231 0.729 0.612);
+      --green-hover: rgba(59,186,156,0.82);
       --green-outer: #2ea184;
       --green-outer: color(display-p3 0.184 0.631 0.518);
       --purple: #2E3047;
@@ -237,6 +238,7 @@
     .tabs {
       --tab-gap: 0.35rem;
       --tab-pad: 0.35rem;
+      --tab-highlight-width: calc((100% - (var(--tab-pad) * 2) - (var(--tab-gap) * (var(--tab-count) - 1))) / var(--tab-count));
       position: relative;
       background: var(--purple);
       padding: var(--tab-pad);
@@ -252,7 +254,7 @@
       position: absolute;
       top: var(--tab-pad);
       left: var(--tab-pad);
-      width: calc((100% - (var(--tab-pad) * 2) - (var(--tab-gap) * (var(--tab-count) - 1))) / var(--tab-count));
+      width: var(--tab-highlight-width);
       height: calc(100% - (var(--tab-pad) * 2));
       border-radius: 16px;
       background: var(--green);
@@ -279,7 +281,7 @@
       transition: color 0.22s ease, transform 0.22s ease;
     }
     .tab-btn.active { color: var(--purple); }
-    .tab-btn:not(.active):hover { color: rgba(59,186,156,0.82); }
+    .tab-btn:not(.active):hover { color: var(--green-hover); }
     .tab-panels {
       position: relative;
       transition: height var(--tab-transition-duration) cubic-bezier(0.22, 1, 0.36, 1);
@@ -1580,7 +1582,9 @@ function switchTab(name) {
   const durationToMs = value => {
     const trimmed = value.trim();
     if (!trimmed) return 0;
-    return trimmed.endsWith('ms') ? parseFloat(trimmed) : parseFloat(trimmed) * 1000;
+    const parsed = parseFloat(trimmed);
+    if (Number.isNaN(parsed)) return 0;
+    return trimmed.endsWith('ms') ? parsed : parsed * 1000;
   };
   const measurePanelHeight = panel => {
     const needsEnteringState = !panel.classList.contains('is-entering');
