@@ -1244,7 +1244,7 @@ const MAX_RECENT_CHOICES = 25;
 const RECENT_HISTORY_BUTTON_LABEL = 'Recently Chosen';
 const RECENT_HISTORY_BUTTON_ICON = '🕘';
 const FUTURE_TIMESTAMP_TOLERANCE_MS = 5 * 60 * 1000;
-const UNKNOWN_RECENT_SELECTION_TIME = 'Unknown time';
+const RECENT_SELECTION_TIME_PLACEHOLDER = 'Unknown time';
 /* ZIP signatures used when locating and reading XLSX archive metadata. */
 const ZIP_EOCD_SIGNATURE = 0x06054b50;
 const ZIP_CENTRAL_DIRECTORY_SIGNATURE = 0x02014b50;
@@ -1362,7 +1362,7 @@ function upsertWheel(rawWheel) {
 
 function formatRecentSelectionTime(chosenAt) {
   const date = new Date(chosenAt);
-  if (Number.isNaN(date.getTime())) return '';
+  if (Number.isNaN(date.getTime())) return RECENT_SELECTION_TIME_PLACEHOLDER;
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: 'medium',
     timeStyle: 'short',
@@ -2241,7 +2241,7 @@ function renderRecentHistory(wheel) {
     : 'No recent selections yet.';
 
   list.innerHTML = items.map(item => {
-    const formattedTime = formatRecentSelectionTime(item.chosenAt) || UNKNOWN_RECENT_SELECTION_TIME;
+    const formattedTime = formatRecentSelectionTime(item.chosenAt);
     return `
       <li class="recent-history-item">
         <span class="recent-history-name">${escHtml(item.name)}</span>
