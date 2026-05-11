@@ -611,6 +611,17 @@
       opacity: 0.7;
       text-align: center;
     }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
     @keyframes pulse {
       from { box-shadow: 0 4px 20px rgba(0,0,0,0.18); }
       to   { box-shadow: 0 4px 40px rgba(46,48,71,0.5); }
@@ -1123,8 +1134,11 @@
 
     <div class="spin-actions">
       <button class="spin-btn" id="btn-spin">🎰 Spin!</button>
-      <button class="recent-btn" id="btn-toggle-recent" type="button" aria-expanded="false" aria-controls="recent-history-panel">🕘 Recently Chosen</button>
+      <button class="recent-btn" id="btn-toggle-recent" type="button" aria-expanded="false" aria-controls="recent-history-panel" aria-describedby="recent-history-status">
+        <span aria-hidden="true" id="recent-history-button-text">🕘 Recently Chosen</span>
+      </button>
     </div>
+    <span class="sr-only" id="recent-history-status" aria-live="polite">No recent selections yet.</span>
 
     <div class="recent-history-panel" id="recent-history-panel" hidden>
       <div class="recent-history-title">Previous spins</div>
@@ -1226,6 +1240,10 @@ const SHARE_SPIN_BASE_DURATION_MS = 4200;
 const SHARE_SPIN_DURATION_VARIANCE_MS = 800;
 const ZIP_EOCD_MIN_SIZE = 22;
 const ZIP_MAX_COMMENT_SIZE = 65535;
+const MAX_RECENT_CHOICES = 25;
+const RECENT_HISTORY_BUTTON_LABEL = 'Recently Chosen';
+const RECENT_HISTORY_BUTTON_ICON = '🕘';
+const MAX_FUTURE_TIMESTAMP_DRIFT_MS = 5 * 60 * 1000;
 /* ZIP signatures used when locating and reading XLSX archive metadata. */
 const ZIP_EOCD_SIGNATURE = 0x06054b50;
 const ZIP_CENTRAL_DIRECTORY_SIGNATURE = 0x02014b50;
@@ -1244,7 +1262,6 @@ let lastSpinWeights = null;
 let shareWheelRotation = 0;
 let sharedResultData   = null;
 let isShareSpinning    = false;
-const MAX_RECENT_CHOICES = 25;
 
 /* ─── Utilities ─────────────────────────────────────────────────────────────── */
 function uid() {
@@ -1272,7 +1289,9 @@ function clampString(value, maxLength) {
 
 function normalizeTimestamp(value) {
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  if (Number.isNaN(date.getTime())) return null;
+  if (date.getTime() > Date.now() + MAX_FUTURE_TIMESTAMP_DRIFT_MS) return null;
+  return date.toISOString();
 }
 
 function normalizeWeightArray(weights, entryCount) {
@@ -1347,6 +1366,12 @@ function formatRecentSelectionTime(chosenAt) {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(date);
+}
+
+function getRecentHistoryButtonText(count) {
+  return count > 0
+    ? `${RECENT_HISTORY_BUTTON_ICON} ${RECENT_HISTORY_BUTTON_LABEL} (${count})`
+    : `${RECENT_HISTORY_BUTTON_ICON} ${RECENT_HISTORY_BUTTON_LABEL}`;
 }
 
 function isMobileUploadOnly() {
@@ -2206,13 +2231,15 @@ function renderRecentHistory(wheel) {
   const list = document.getElementById('recent-history-list');
   const empty = document.getElementById('recent-history-empty');
   const button = document.getElementById('btn-toggle-recent');
+  const buttonText = document.getElementById('recent-history-button-text');
+  const status = document.getElementById('recent-history-status');
   const items = [...(wheel.settings.recentSelections || [])].reverse();
 
-  if (button) {
-    button.textContent = items.length
-      ? `🕘 Recently Chosen (${items.length})`
-      : '🕘 Recently Chosen';
-  }
+  if (buttonText) buttonText.textContent = getRecentHistoryButtonText(items.length);
+  if (button) button.setAttribute('aria-label', RECENT_HISTORY_BUTTON_LABEL);
+  if (status) status.textContent = items.length
+    ? `${items.length} recent selection${items.length === 1 ? '' : 's'} available.`
+    : 'No recent selections yet.';
 
   list.innerHTML = items.map(item => `
     <li class="recent-history-item">
