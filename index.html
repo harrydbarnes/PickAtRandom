@@ -549,6 +549,10 @@
       transition: background 0.15s, color 0.15s;
     }
     .btn-secondary:hover { background: var(--purple); color: var(--green); }
+    .btn-secondary:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
 
     /* ── Spin view ──────────────────────────────────────────────────────────── */
     .spin-content {
@@ -598,6 +602,7 @@
       justify-content: center;
       margin-bottom: 0.9rem;
       min-height: 220px;
+      padding-inline: 1.5rem;
     }
     .panel-confetti-canvas {
       position: absolute;
@@ -608,16 +613,19 @@
     }
     .wheel-wrapper {
       display: flex;
-      flex-direction: column;
       align-items: center;
+      justify-content: center;
       position: relative;
       z-index: 1;
     }
     .wheel-pointer-el {
-      font-size: 2.2rem;
+      position: absolute;
+      top: 50%;
+      right: -1rem;
+      transform: translateY(-50%) rotate(-90deg);
+      font-size: 2rem;
       color: var(--purple);
       line-height: 1;
-      margin-bottom: -4px;
       z-index: 2;
       filter: drop-shadow(0 3px 6px rgba(0,0,0,0.2));
     }
@@ -698,8 +706,8 @@
       color: var(--purple);
       border: 2px solid rgba(46,48,71,0.32);
       border-radius: 50px;
-      padding: 0.7rem 1.4rem;
-      font-size: 0.95rem;
+      padding: 0.55rem 1rem;
+      font-size: 0.82rem;
       font-weight: 800;
       font-family: var(--font);
       cursor: pointer;
@@ -707,25 +715,78 @@
     }
     .recent-btn:hover { background: rgba(46,48,71,0.14); transform: translateY(-1px); border-color: rgba(46,48,71,0.48); }
     .recent-btn[aria-expanded="true"] { background: var(--purple); color: var(--green); border-color: var(--purple); }
+    .recent-history-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(46,48,71,0.22);
+      backdrop-filter: blur(4px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.24s ease;
+      z-index: 1090;
+    }
+    .recent-history-backdrop.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
     .recent-history-panel {
-      width: min(100%, 440px);
-      background: rgba(46,48,71,0.1);
-      border: 1px solid rgba(46,48,71,0.18);
-      border-radius: 18px;
-      padding: 1rem;
+      position: fixed;
+      left: 50%;
+      bottom: 0;
+      width: min(960px, calc(100vw - 2rem));
+      max-height: 80vh;
+      background: rgba(244,250,247,0.98);
+      border: 1px solid rgba(46,48,71,0.16);
+      border-bottom: none;
+      border-radius: 28px 28px 0 0;
+      padding: 0.9rem 1rem 1.25rem;
+      box-shadow: 0 -18px 40px rgba(0,0,0,0.2);
+      transform: translate(-50%, calc(100% + 1rem));
+      opacity: 0;
+      transition: transform 0.28s ease, opacity 0.28s ease;
+      z-index: 1100;
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+    }
+    .recent-history-panel.open {
+      transform: translate(-50%, 0);
+      opacity: 1;
     }
     .recent-history-panel[hidden] { display: none; }
+    .recent-history-handle {
+      width: 68px;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(46,48,71,0.2);
+      margin: 0 auto;
+    }
+    .recent-history-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
     .recent-history-title {
-      font-size: 0.9rem;
-      font-weight: 800;
-      margin-bottom: 0.75rem;
-      text-align: center;
+      font-size: 1rem;
+      font-weight: 900;
+      margin: 0;
+    }
+    .recent-history-close {
+      width: 2.3rem;
+      height: 2.3rem;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
     .recent-history-list {
       list-style: none;
       display: flex;
       flex-direction: column;
       gap: 0.65rem;
+      overflow: auto;
+      padding-right: 0.25rem;
     }
     .recent-history-item {
       display: flex;
@@ -747,6 +808,12 @@
       font-size: 0.9rem;
       opacity: 0.7;
       text-align: center;
+    }
+    .settings-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.75rem;
+      margin-top: 0.9rem;
     }
     .sr-only {
       position: absolute;
@@ -1103,6 +1170,9 @@
       .spin-scenario-list[data-count="3"] {
         grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
       }
+      .recent-history-panel {
+        width: min(860px, calc(100vw - 1.5rem));
+      }
     }
 
     @media (min-width: 900px) {
@@ -1134,6 +1204,17 @@
       }
       .wheel-select-label {
         justify-content: flex-end;
+      }
+      .settings-actions {
+        grid-template-columns: 1fr;
+      }
+      .recent-history-panel {
+        width: calc(100vw - 1rem);
+        max-height: 78vh;
+      }
+      .wheel-pointer-el {
+        right: -0.7rem;
+        font-size: 1.75rem;
       }
     }
 
@@ -1254,7 +1335,10 @@
           <label for="toggle-remember">Remember who's been spun — don't select again until reset</label>
           <div class="setting-toggle" id="toggle-remember" role="switch" aria-checked="false"></div>
         </div>
-        <button class="btn-secondary" id="btn-reset-spun-setup" style="width:100%">🔄 Reset Spun History</button>
+        <div class="settings-actions">
+          <button class="btn-secondary" id="btn-open-history-setup" type="button">🕘 Spin History</button>
+          <button class="btn-secondary" id="btn-reset-spun-setup" type="button">🔄 Reset Spin History</button>
+        </div>
 
         <hr class="weights-divider"/>
         <span class="weights-section-label">⚖️ Weighted Chances</span>
@@ -1303,16 +1387,11 @@
     <div class="spin-actions">
       <button class="spin-btn" id="btn-spin">🎰 Spin!</button>
       <button class="recent-btn" id="btn-toggle-recent" type="button" aria-expanded="false" aria-controls="recent-history-panel" aria-describedby="recent-history-status">
-        <span aria-hidden="true" id="recent-history-button-text">🕘 Recently Chosen</span>
+        <span aria-hidden="true" id="recent-history-button-text">🕘 Recent Spins</span>
       </button>
     </div>
     <span class="sr-only" id="recent-history-status" aria-live="polite">No recent selections yet.</span>
 
-    <div class="recent-history-panel" id="recent-history-panel" hidden>
-      <div class="recent-history-title">Previous spins</div>
-      <p class="recent-history-empty" id="recent-history-empty">No one has been chosen yet.</p>
-      <ul class="recent-history-list" id="recent-history-list"></ul>
-    </div>
 
     <div class="spun-history-section" id="spun-history-section" style="display:none">
       <div class="spun-history-header">
@@ -1390,6 +1469,17 @@
   </div>
 </div>
 
+<div class="recent-history-backdrop" id="recent-history-backdrop" hidden></div>
+<section class="recent-history-panel" id="recent-history-panel" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="recent-history-title">
+  <div class="recent-history-handle" aria-hidden="true"></div>
+  <div class="recent-history-header">
+    <div class="recent-history-title" id="recent-history-title">Spin History</div>
+    <button class="icon-btn recent-history-close" id="btn-close-recent-history" type="button" aria-label="Close spin history">✕</button>
+  </div>
+  <p class="recent-history-empty" id="recent-history-empty">No spins yet for this wheel.</p>
+  <ul class="recent-history-list" id="recent-history-list"></ul>
+</section>
+
 <!-- canvas-confetti CDN -->
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 
@@ -1409,7 +1499,7 @@ const ZIP_MAX_COMMENT_SIZE = 65535;
 const MAX_RECENT_CHOICES = 25;
 const MAX_SCENARIO_WHEELS = 3;
 const WINNER_SEGMENT_OFFSET_FACTOR = 0.7;
-const RECENT_HISTORY_BUTTON_LABEL = 'Recently Chosen';
+const RECENT_HISTORY_BUTTON_LABEL = 'Recent Spins';
 const RECENT_HISTORY_BUTTON_ICON = '🕘';
 const FUTURE_TIMESTAMP_TOLERANCE_MS = 5 * 60 * 1000;
 const RECENT_SELECTION_TIME_PLACEHOLDER = 'Unknown time';
@@ -1433,6 +1523,7 @@ let lastWinnerIdx   = -1;
 let lastWinnerName  = '';
 let lastSpinEntries = [];
 let lastSpinWeights = null;
+let recentHistoryHideTimeoutId = null;
 let shareWheelRotation = 0;
 let sharedResultData   = null;
 let isShareSpinning    = false;
@@ -1893,6 +1984,7 @@ function availableEntries(wheel) {
 /* ─── View routing ──────────────────────────────────────────────────────────── */
 function showView(name) {
   if (name !== 'spin') cancelSpin();
+  closeRecentHistory(true);
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById('view-' + name).classList.add('active');
   window.scrollTo(0, 0);
@@ -1951,6 +2043,8 @@ function openSetup(wheelId) {
   /* Settings */
   const on = wheel ? wheel.settings.rememberSpun : false;
   setToggle(document.getElementById('toggle-remember'), on);
+  const historyButton = document.getElementById('btn-open-history-setup');
+  if (historyButton) historyButton.disabled = !wheel;
 
   const weightLabel    = wheel ? (wheel.settings.weightLabel    || '') : '';
   const reverseWeights = wheel ? (wheel.settings.reverseWeights || false) : false;
@@ -2405,14 +2499,14 @@ function drawWheel(canvas, entries, rotation, weights) {
     ctx.textBaseline = 'middle';
 
     /* Clip text to segment radial area */
-    const minTextStart   = 18; /* Keep labels clear of the hub. */
+    const minTextStart   = 42; /* Keep labels clear of the hub. */
     const minEdgePadding = 12; /* Keep labels away from the outer ring. */
     const minTextWidth   = 24; /* Keep enough room for short readable labels. */
-    const fallbackTextStart = 8;
+    const fallbackTextStart = 28;
     const fallbackEdgePadding = 6;
     const fallbackTextWidth = 12;
     const textTruncationPadding = 20;
-    let textStart        = Math.max(minTextStart, R * 0.12);
+    let textStart        = Math.max(minTextStart, R * 0.22);
     let edgePadding      = Math.max(minEdgePadding, R * 0.08);
     let maxTextWidth     = R - textStart - edgePadding;
 
@@ -2481,7 +2575,7 @@ function getWinnerCenterRotation(segWeights, winnerIdx) {
   let cumAngle = 0;
   for (let i = 0; i < winnerIdx; i++) cumAngle += segWeights[i] * 2 * Math.PI;
   const winnerSegAngle = segWeights[winnerIdx] * 2 * Math.PI;
-  return (3 * Math.PI / 2) - (cumAngle + winnerSegAngle / 2);
+  return -(cumAngle + winnerSegAngle / 2);
 }
 
 function getPositiveAngleDelta(fromAngle, toAngle) {
@@ -2623,12 +2717,48 @@ function onSpinComplete(wheel, avail, winnerIdx, panelIndex) {
   fireConfetti(panelIndex);
 }
 
-function closeRecentHistory() {
+function closeRecentHistory(forceImmediate = false) {
   const button = document.getElementById('btn-toggle-recent');
+  const backdrop = document.getElementById('recent-history-backdrop');
   const panel = document.getElementById('recent-history-panel');
-  if (!button || !panel) return;
-  button.setAttribute('aria-expanded', 'false');
-  panel.hidden = true;
+  if (button) button.setAttribute('aria-expanded', 'false');
+  if (!panel || !backdrop) return;
+  clearTimeout(recentHistoryHideTimeoutId);
+  panel.classList.remove('open');
+  backdrop.classList.remove('visible');
+  panel.setAttribute('aria-hidden', 'true');
+  if (forceImmediate) {
+    panel.hidden = true;
+    backdrop.hidden = true;
+    return;
+  }
+  recentHistoryHideTimeoutId = window.setTimeout(() => {
+    if (!panel.classList.contains('open')) {
+      panel.hidden = true;
+      backdrop.hidden = true;
+    }
+  }, 280);
+}
+
+function openRecentHistory() {
+  const wheel = getWheel(currentWheelId);
+  const button = document.getElementById('btn-toggle-recent');
+  const backdrop = document.getElementById('recent-history-backdrop');
+  const panel = document.getElementById('recent-history-panel');
+  if (!wheel || !panel || !backdrop) {
+    showToast('⚠️ Save this wheel first to view spin history');
+    return;
+  }
+  clearTimeout(recentHistoryHideTimeoutId);
+  renderRecentHistory(wheel);
+  backdrop.hidden = false;
+  panel.hidden = false;
+  panel.setAttribute('aria-hidden', 'false');
+  if (button && !button.hidden) button.setAttribute('aria-expanded', 'true');
+  requestAnimationFrame(() => {
+    backdrop.classList.add('visible');
+    panel.classList.add('open');
+  });
 }
 
 function renderRecentHistory(wheel) {
@@ -2661,9 +2791,9 @@ function toggleRecentHistory() {
   const button = document.getElementById('btn-toggle-recent');
   const panel = document.getElementById('recent-history-panel');
   if (!button || !panel) return;
-  const expanded = button.getAttribute('aria-expanded') === 'true';
-  button.setAttribute('aria-expanded', expanded ? 'false' : 'true');
-  panel.hidden = expanded;
+  const expanded = button.getAttribute('aria-expanded') === 'true' && panel.classList.contains('open');
+  if (expanded) closeRecentHistory();
+  else openRecentHistory();
 }
 
 function renderSpunChips(wheel) {
@@ -3275,6 +3405,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-spin').addEventListener('click', doSpin);
   document.getElementById('btn-toggle-recent').addEventListener('click', toggleRecentHistory);
+  document.getElementById('btn-open-history-setup').addEventListener('click', openRecentHistory);
+  document.getElementById('btn-close-recent-history').addEventListener('click', () => closeRecentHistory());
+  document.getElementById('recent-history-backdrop').addEventListener('click', () => closeRecentHistory());
   document.getElementById('spin-scenario-list').addEventListener('click', e => {
     const shareBtn = e.target.closest('[data-spin-share]');
     if (!shareBtn || currentSpinWheelIds.length !== 1) return;
@@ -3292,6 +3425,9 @@ document.addEventListener('DOMContentLoaded', () => {
     spinWheelRotations = [0];
     renderSpinPanels();
     updateSpinStatus();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeRecentHistory();
   });
 
   /* ── Popup ── */
