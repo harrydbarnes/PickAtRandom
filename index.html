@@ -321,6 +321,12 @@
 
     /* ── Form elements ──────────────────────────────────────────────────────── */
     .form-group { margin-bottom: 1.25rem; }
+    .split-form-group {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+      gap: 0.75rem;
+    }
+    .split-form-group .form-group { margin-bottom: 0; }
     .form-label {
       display: block;
       font-weight: 700;
@@ -347,6 +353,9 @@
       opacity: 1;
     }
     .form-input.input-error { border-color: #e03 !important; }
+    @media (max-width: 640px) {
+      .split-form-group { grid-template-columns: 1fr; }
+    }
 
     /* ── Entry rows ─────────────────────────────────────────────────────────── */
     .entry-row { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.45rem; }
@@ -1048,15 +1057,31 @@
       <!-- Entries tab -->
       <div id="tab-entries" class="tab-panel active" role="tabpanel" aria-hidden="false">
         <div class="form-group">
-          <label class="form-label" for="wheel-name-input">What Are You Spinning For?</label>
-          <input
-            class="form-input"
-            id="wheel-name-input"
-            type="text"
-            placeholder="e.g. Who presents first?"
-            maxlength="80"
-            autocomplete="off"
-          />
+          <label class="form-label">What Are You Spinning For?</label>
+          <div class="split-form-group">
+            <div class="form-group">
+              <label class="form-label" for="activity-input">Activity Type</label>
+              <input
+                class="form-input"
+                id="activity-input"
+                type="text"
+                placeholder="e.g. book"
+                maxlength="30"
+                autocomplete="off"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="wheel-name-input">Task Title</label>
+              <input
+                class="form-input"
+                id="wheel-name-input"
+                type="text"
+                placeholder="e.g. Simple Booking Request"
+                maxlength="80"
+                autocomplete="off"
+              />
+            </div>
+          </div>
         </div>
 
         <div class="form-group">
@@ -1263,6 +1288,8 @@ let lastSpinWeights = null;
 let shareWheelRotation = 0;
 let sharedResultData   = null;
 let isShareSpinning    = false;
+const WHEEL_DISPLAY_SEPARATOR = ' — ';
+const WHEEL_PHRASE_SEPARATOR = ' ';
 
 /* ─── Utilities ─────────────────────────────────────────────────────────────── */
 function uid() {
@@ -1282,6 +1309,28 @@ function escHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function getWheelTaskTitle(wheel) {
+  return (wheel?.taskTitle || wheel?.name || '').trim();
+}
+
+function getWheelActivity(wheel) {
+  return (wheel?.activity || '').trim();
+}
+
+function getWheelDisplayName(wheel) {
+  const activity = getWheelActivity(wheel);
+  const taskTitle = getWheelTaskTitle(wheel);
+  if (activity && taskTitle) return `${activity}${WHEEL_DISPLAY_SEPARATOR}${taskTitle}`;
+  return taskTitle || activity || 'Unnamed Wheel';
+}
+
+function getWheelSelectionText(wheel) {
+  const activity = getWheelActivity(wheel);
+  const taskTitle = getWheelTaskTitle(wheel);
+  if (activity && taskTitle) return `${activity}${WHEEL_PHRASE_SEPARATOR}${taskTitle}`;
+  return taskTitle || activity || 'take on this task';
 }
 
 function clampString(value, maxLength) {
@@ -1306,6 +1355,8 @@ function normalizeWeightArray(weights, entryCount) {
 
 function normalizeWheel(rawWheel) {
   const rawSettings = rawWheel && typeof rawWheel.settings === 'object' && rawWheel.settings ? rawWheel.settings : {};
+  const activity = clampString(String(rawWheel?.activity ?? ''), 30);
+  const taskTitle = clampString(String(rawWheel?.taskTitle ?? rawWheel?.name ?? ''), 80);
   const entries = Array.isArray(rawWheel?.entries)
     ? rawWheel.entries.slice(0, 250).map(entry => clampString(String(entry ?? ''), 200))
     : [];
@@ -1339,7 +1390,9 @@ function normalizeWheel(rawWheel) {
 
   return {
     id: clampString(String(rawWheel?.id ?? ''), 120) || uid(),
-    name: clampString(String(rawWheel?.name ?? ''), 80),
+    name: taskTitle,
+    activity,
+    taskTitle,
     entries,
     settings: {
       rememberSpun: !!rawSettings.rememberSpun,
@@ -1626,11 +1679,11 @@ function renderHome() {
       <div class="wheel-card" data-id="${w.id}">
         <div class="wheel-card-icon" aria-hidden="true">🎡</div>
         <div class="wheel-card-info" data-spin="${w.id}">
-          <div class="wheel-card-name">${escHtml(w.name || 'Unnamed Wheel')}</div>
+          <div class="wheel-card-name">${escHtml(getWheelDisplayName(w))}</div>
           <div class="wheel-card-count">${count} ${count === 1 ? 'entry' : 'entries'}</div>
         </div>
         <div class="wheel-card-actions">
-          <button class="icon-btn cog-btn" data-id="${w.id}" aria-label="Options for ${escHtml(w.name)}">⚙️</button>
+          <button class="icon-btn cog-btn" data-id="${w.id}" aria-label="Options for ${escHtml(getWheelDisplayName(w))}">⚙️</button>
           <div class="dropdown" id="dd-${w.id}" style="display:none">
             <button data-action="edit"   data-id="${w.id}">✏️ Edit</button>
             <button data-action="delete" data-id="${w.id}">🗑️ Delete</button>
@@ -1646,7 +1699,9 @@ function openSetup(wheelId) {
   const wheel = wheelId ? getWheel(wheelId) : null;
 
   document.getElementById('setup-title').textContent = wheel ? 'Edit Wheel' : 'Setup My Wheel';
-  document.getElementById('wheel-name-input').value   = wheel ? wheel.name : '';
+  document.getElementById('activity-input').value     = wheel ? getWheelActivity(wheel) : '';
+  document.getElementById('activity-input').classList.remove('input-error');
+  document.getElementById('wheel-name-input').value   = wheel ? getWheelTaskTitle(wheel) : '';
   document.getElementById('wheel-name-input').classList.remove('input-error');
 
   /* Seed entries: use saved list or 3 blanks; always ensure ≥ 1 empty at end */
@@ -1854,14 +1909,15 @@ function refreshWeightsTableAndCollect() {
 }
 
 function saveCurrentWheel(andSpin) {
-  const name           = document.getElementById('wheel-name-input').value.trim();
+  const activity       = document.getElementById('activity-input').value.trim();
+  const taskTitle      = document.getElementById('wheel-name-input').value.trim();
   const entries        = getEntryValues();
   const rememberSpun   = document.getElementById('toggle-remember').classList.contains('on');
   const weightLabel    = document.getElementById('weight-label-input').value.trim();
   const reverseWeights = document.getElementById('toggle-reverse-weights').classList.contains('on');
   const weights        = refreshWeightsTableAndCollect();
 
-  if (!name) {
+  if (!taskTitle) {
     const inp = document.getElementById('wheel-name-input');
     inp.classList.add('input-error');
     inp.focus();
@@ -1877,7 +1933,9 @@ function saveCurrentWheel(andSpin) {
   const existingWheel = currentWheelId ? getWheel(currentWheelId) : null;
   const wheel = upsertWheel({
     id: existingWheel?.id || uid(),
-    name,
+    activity,
+    taskTitle,
+    name: taskTitle,
     entries,
     settings: {
       rememberSpun,
@@ -1924,7 +1982,7 @@ function openSpin(wheelId) {
   const wheel = getWheel(wheelId);
   if (!wheel) return;
 
-  document.getElementById('spin-wheel-name-el').textContent = wheel.name;
+  document.getElementById('spin-wheel-name-el').textContent = getWheelDisplayName(wheel);
 
   const canvas = document.getElementById('wheel-canvas');
   fitCanvas(canvas);
@@ -2215,7 +2273,7 @@ function onSpinComplete(wheel, avail, winnerIdx) {
 
   playKazoo();
   fireConfetti();
-  showResultPopup(name, wheel.name);
+  showResultPopup(name, wheel);
 }
 
 function closeRecentHistory() {
@@ -2275,9 +2333,9 @@ function renderSpunChips(wheel) {
 }
 
 /* ─── RESULT POPUP ──────────────────────────────────────────────────────────── */
-function showResultPopup(winnerName, wheelName) {
+function showResultPopup(winnerName, wheel) {
   document.getElementById('popup-message-el').innerHTML =
-    `<strong>${escHtml(winnerName)}</strong>, you have been selected to <em>${escHtml(wheelName)}</em>!`;
+    `<strong>${escHtml(winnerName)}</strong>, you have been selected to <em>${escHtml(getWheelSelectionText(wheel))}</em>!`;
   document.getElementById('result-popup').style.display = 'flex';
 }
 
@@ -2367,7 +2425,9 @@ function shareResult() {
      v1 replayed a single result only; v2 also includes the full wheel state so recipients can keep spinning and share updates back. */
   const payload = {
     version:     2,
-    name:        wheel.name,
+    name:        getWheelTaskTitle(wheel),
+    activity:    getWheelActivity(wheel),
+    taskTitle:   getWheelTaskTitle(wheel),
     entries:     lastSpinEntries,
     winnerIndex: lastWinnerIdx,
     winnerName:  lastWinnerName,
@@ -2399,8 +2459,9 @@ function loadShareView() {
     const weights = normalizeWeightArray(data.weights, entries.length);
     const winnerIndex = Number.isInteger(data.winnerIndex) ? data.winnerIndex : -1;
     const winnerName = clampString(String(data.winnerName ?? ''), 200);
-    const wheelName = clampString(String(data.name ?? ''), 80);
     const sharedWheel = data.wheel ? normalizeWheel(data.wheel) : null;
+    const activity = clampString(String(data.activity ?? sharedWheel?.activity ?? ''), 30);
+    const taskTitle = clampString(String(data.taskTitle ?? data.name ?? sharedWheel?.taskTitle ?? sharedWheel?.name ?? ''), 80);
 
     if (entries.length < 2) return false;
     if (winnerIndex < 0 || winnerIndex >= entries.length) return false;
@@ -2410,7 +2471,9 @@ function loadShareView() {
       weights,
       winnerIndex,
       winnerName: winnerName || entries[winnerIndex],
-      name: wheelName || sharedWheel?.name || 'Shared Wheel',
+      activity,
+      taskTitle,
+      name: taskTitle,
       wheel: sharedWheel,
     };
     shareWheelRotation = 0;
@@ -2455,7 +2518,7 @@ function loadShareView() {
         canvas.classList.remove('spinning');
         isShareSpinning = false;
         document.getElementById('share-winner-name').textContent = `🏆 ${sharedResultData.winnerName}`;
-        document.getElementById('share-wheel-label').textContent = `was selected to: ${sharedResultData.name}`;
+        document.getElementById('share-wheel-label').textContent = `was selected to: ${getWheelSelectionText(sharedResultData)}`;
         document.getElementById('share-result-box').hidden = false;
         document.getElementById('share-spin-status').textContent = '';
       }
