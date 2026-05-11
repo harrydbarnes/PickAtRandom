@@ -3417,9 +3417,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-spin').addEventListener('click', doSpin);
   document.getElementById('btn-toggle-recent').addEventListener('click', toggleRecentHistory);
-  document.getElementById('btn-open-history-setup').addEventListener('click', openRecentHistory);
-  document.getElementById('btn-close-recent-history').addEventListener('click', () => closeRecentHistory());
-  document.getElementById('recent-history-backdrop').addEventListener('click', () => closeRecentHistory());
+  document.getElementById('btn-open-history-setup')?.addEventListener('click', openRecentHistory);
+  document.getElementById('btn-close-recent-history')?.addEventListener('click', () => closeRecentHistory());
+  document.getElementById('recent-history-backdrop')?.addEventListener('click', () => closeRecentHistory());
   document.getElementById('spin-scenario-list').addEventListener('click', e => {
     const shareBtn = e.target.closest('[data-spin-share]');
     if (!shareBtn || currentSpinWheelIds.length !== 1) return;
