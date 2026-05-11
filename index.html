@@ -1660,14 +1660,15 @@ function drawWheel(canvas, entries, rotation, weights) {
     ctx.fillStyle    = textColor;
     const fontSize   = Math.max(10, Math.min(15, R * 0.125));
     ctx.font         = `bold ${fontSize}px system-ui, sans-serif`;
-    ctx.textAlign    = 'right';
+    ctx.textAlign    = 'left';
     ctx.textBaseline = 'middle';
 
     /* Clip text to segment radial area */
-    const maxTextW = R * 0.68;
+    const textStart = Math.max(18, R * 0.12);
+    const maxTextW  = Math.max(24, R - textStart - Math.max(12, R * 0.08));
     ctx.save();
     ctx.beginPath();
-    ctx.rect(18, -fontSize * 0.9, maxTextW, fontSize * 1.8);
+    ctx.rect(textStart, -fontSize * 0.9, maxTextW, fontSize * 1.8);
     ctx.clip();
 
     /* Binary-search truncation — O(log n) measureText calls vs linear scan */
@@ -1682,7 +1683,7 @@ function drawWheel(canvas, entries, rotation, weights) {
       label = label.slice(0, lo - 1) + '…';
     }
 
-    ctx.fillText(label, R - 10, 0);
+    ctx.fillText(label, textStart, 0);
     ctx.restore();
     ctx.restore();
 
