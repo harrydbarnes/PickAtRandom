@@ -1455,7 +1455,10 @@ function saveWheels() {
 
 function loadWheels() {
   try {
-    wheels = JSON.parse(localStorage.getItem('par_wheels') || '[]');
+    wheels = JSON.parse(localStorage.getItem('par_wheels') || '[]').map(wheel => ({
+      ...wheel,
+      taskTitle: getWheelTaskTitle(wheel),
+    }));
   } catch (_) {
     wheels = [];
   }
@@ -1726,14 +1729,14 @@ function refreshWeightsTableAndCollect() {
 
 function saveCurrentWheel(andSpin) {
   const activity       = document.getElementById('activity-input').value.trim();
-  const name           = document.getElementById('wheel-name-input').value.trim();
+  const taskTitle      = document.getElementById('wheel-name-input').value.trim();
   const entries        = getEntryValues();
   const rememberSpun   = document.getElementById('toggle-remember').classList.contains('on');
   const weightLabel    = document.getElementById('weight-label-input').value.trim();
   const reverseWeights = document.getElementById('toggle-reverse-weights').classList.contains('on');
   const weights        = refreshWeightsTableAndCollect();
 
-  if (!name) {
+  if (!taskTitle) {
     const inp = document.getElementById('wheel-name-input');
     inp.classList.add('input-error');
     inp.focus();
@@ -1750,7 +1753,8 @@ function saveCurrentWheel(andSpin) {
     const w = getWheel(currentWheelId);
     if (w) {
       w.activity = activity;
-      w.name = name;
+      w.taskTitle = taskTitle;
+      delete w.name;
       w.entries = entries;
       w.settings.rememberSpun   = rememberSpun;
       w.settings.weightLabel    = weightLabel;
@@ -1758,7 +1762,7 @@ function saveCurrentWheel(andSpin) {
       w.settings.weights        = weights;
     }
   } else {
-    const w = { id: uid(), activity, name, entries, settings: { rememberSpun, spunEntries: [], weightLabel, reverseWeights, weights } };
+    const w = { id: uid(), activity, taskTitle, entries, settings: { rememberSpun, spunEntries: [], weightLabel, reverseWeights, weights } };
     wheels.push(w);
     currentWheelId = w.id;
   }
