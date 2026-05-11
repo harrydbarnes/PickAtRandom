@@ -998,7 +998,7 @@
               />
             </div>
             <div class="form-group">
-              <label class="form-label" for="wheel-name-input">Title of Task</label>
+              <label class="form-label" for="wheel-name-input">Task Title</label>
               <input
                 class="form-input"
                 id="wheel-name-input"
@@ -1199,7 +1199,7 @@ let shareWheelRotation = 0;
 let sharedResultData   = null;
 let isShareSpinning    = false;
 const WHEEL_DISPLAY_SEPARATOR = ' — ';
-const WHEEL_SELECTION_SEPARATOR = ' ';
+const WHEEL_PHRASE_SEPARATOR = ' ';
 
 /* ─── Utilities ─────────────────────────────────────────────────────────────── */
 function uid() {
@@ -1239,7 +1239,7 @@ function getWheelDisplayName(wheel) {
 function getWheelSelectionText(wheel) {
   const activity = getWheelActivity(wheel);
   const taskTitle = getWheelTaskTitle(wheel);
-  if (activity && taskTitle) return `${activity}${WHEEL_SELECTION_SEPARATOR}${taskTitle}`;
+  if (activity && taskTitle) return `${activity}${WHEEL_PHRASE_SEPARATOR}${taskTitle}`;
   return taskTitle || activity || 'take on this task';
 }
 
@@ -1754,7 +1754,7 @@ function saveCurrentWheel(andSpin) {
     if (w) {
       w.activity = activity;
       w.taskTitle = taskTitle;
-      delete w.name;
+      if ('name' in w) w.name = taskTitle;
       w.entries = entries;
       w.settings.rememberSpun   = rememberSpun;
       w.settings.weightLabel    = weightLabel;
