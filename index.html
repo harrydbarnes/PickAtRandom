@@ -1289,7 +1289,7 @@ let shareWheelRotation = 0;
 let sharedResultData   = null;
 let isShareSpinning    = false;
 const WHEEL_DISPLAY_SEPARATOR = ' — ';
-const WHEEL_PHRASE_SEPARATOR = ' ';
+const WHEEL_SELECTION_SEPARATOR = ' ';
 
 /* ─── Utilities ─────────────────────────────────────────────────────────────── */
 function uid() {
@@ -1315,6 +1315,10 @@ function getWheelTaskTitle(wheel) {
   return (wheel?.taskTitle || wheel?.name || '').trim();
 }
 
+function getRawWheelTaskTitle(rawWheel) {
+  return clampString(String(rawWheel?.taskTitle ?? rawWheel?.name ?? ''), 80);
+}
+
 function getWheelActivity(wheel) {
   return (wheel?.activity || '').trim();
 }
@@ -1329,7 +1333,7 @@ function getWheelDisplayName(wheel) {
 function getWheelSelectionText(wheel) {
   const activity = getWheelActivity(wheel);
   const taskTitle = getWheelTaskTitle(wheel);
-  if (activity && taskTitle) return `${activity}${WHEEL_PHRASE_SEPARATOR}${taskTitle}`;
+  if (activity && taskTitle) return `${activity}${WHEEL_SELECTION_SEPARATOR}${taskTitle}`;
   return taskTitle || activity || 'take on this task';
 }
 
@@ -1356,7 +1360,7 @@ function normalizeWeightArray(weights, entryCount) {
 function normalizeWheel(rawWheel) {
   const rawSettings = rawWheel && typeof rawWheel.settings === 'object' && rawWheel.settings ? rawWheel.settings : {};
   const activity = clampString(String(rawWheel?.activity ?? ''), 30);
-  const taskTitle = clampString(String(rawWheel?.taskTitle ?? rawWheel?.name ?? ''), 80);
+  const taskTitle = getRawWheelTaskTitle(rawWheel);
   const entries = Array.isArray(rawWheel?.entries)
     ? rawWheel.entries.slice(0, 250).map(entry => clampString(String(entry ?? ''), 200))
     : [];
@@ -1390,6 +1394,7 @@ function normalizeWheel(rawWheel) {
 
   return {
     id: clampString(String(rawWheel?.id ?? ''), 120) || uid(),
+    /* Keep legacy "name" populated so older stored/shared wheel code paths still read the task title correctly. */
     name: taskTitle,
     activity,
     taskTitle,
@@ -2461,7 +2466,7 @@ function loadShareView() {
     const winnerName = clampString(String(data.winnerName ?? ''), 200);
     const sharedWheel = data.wheel ? normalizeWheel(data.wheel) : null;
     const activity = clampString(String(data.activity ?? sharedWheel?.activity ?? ''), 30);
-    const taskTitle = clampString(String(data.taskTitle ?? data.name ?? sharedWheel?.taskTitle ?? sharedWheel?.name ?? ''), 80);
+    const taskTitle = getRawWheelTaskTitle({ taskTitle: data.taskTitle ?? sharedWheel?.taskTitle, name: data.name ?? sharedWheel?.name });
 
     if (entries.length < 2) return false;
     if (winnerIndex < 0 || winnerIndex >= entries.length) return false;
