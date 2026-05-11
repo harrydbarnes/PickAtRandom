@@ -1368,10 +1368,8 @@ function formatRecentSelectionTime(chosenAt) {
   }).format(date);
 }
 
-function getRecentHistoryButtonText(count) {
-  return count > 0
-    ? `${RECENT_HISTORY_BUTTON_ICON} ${RECENT_HISTORY_BUTTON_LABEL} (${count})`
-    : `${RECENT_HISTORY_BUTTON_ICON} ${RECENT_HISTORY_BUTTON_LABEL}`;
+function getRecentHistoryButtonText() {
+  return `${RECENT_HISTORY_BUTTON_ICON} ${RECENT_HISTORY_BUTTON_LABEL}`;
 }
 
 function isMobileUploadOnly() {
@@ -2233,20 +2231,23 @@ function renderRecentHistory(wheel) {
   const button = document.getElementById('btn-toggle-recent');
   const buttonText = document.getElementById('recent-history-button-text');
   const status = document.getElementById('recent-history-status');
-  const items = [...(wheel.settings.recentSelections || [])].reverse();
+  const items = (wheel.settings.recentSelections || []).slice().reverse();
 
-  if (buttonText) buttonText.textContent = getRecentHistoryButtonText(items.length);
+  if (buttonText) buttonText.textContent = getRecentHistoryButtonText();
   if (button) button.setAttribute('aria-label', RECENT_HISTORY_BUTTON_LABEL);
   if (status) status.textContent = items.length
     ? `${items.length} recent selection${items.length === 1 ? '' : 's'} available.`
     : 'No recent selections yet.';
 
-  list.innerHTML = items.map(item => `
-    <li class="recent-history-item">
-      <span class="recent-history-name">${escHtml(item.name)}</span>
-      <span class="recent-history-time">${escHtml(formatRecentSelectionTime(item.chosenAt))}</span>
-    </li>
-  `).join('');
+  list.innerHTML = items.map(item => {
+    const formattedTime = formatRecentSelectionTime(item.chosenAt);
+    return `
+      <li class="recent-history-item">
+        <span class="recent-history-name">${escHtml(item.name)}</span>
+        <span class="recent-history-time" aria-label="Selected on ${escHtml(formattedTime)}">${escHtml(formattedTime)}</span>
+      </li>
+    `;
+  }).join('');
   empty.hidden = items.length > 0;
 }
 
@@ -2361,6 +2362,7 @@ function shareResult() {
   const wheel = getWheel(currentWheelId);
   if (!wheel || lastWinnerIdx < 0) return;
 
+  /* v2 shares the full wheel state so recipients can keep spinning and pass updated history back without a server. */
   const payload = {
     version:     2,
     name:        wheel.name,
