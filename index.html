@@ -1408,6 +1408,7 @@ const ZIP_EOCD_MIN_SIZE = 22;
 const ZIP_MAX_COMMENT_SIZE = 65535;
 const MAX_RECENT_CHOICES = 25;
 const MAX_SCENARIO_WHEELS = 3;
+const WINNER_SEGMENT_OFFSET_FACTOR = 0.7;
 const RECENT_HISTORY_BUTTON_LABEL = 'Recently Chosen';
 const RECENT_HISTORY_BUTTON_ICON = '🕘';
 const FUTURE_TIMESTAMP_TOLERANCE_MS = 5 * 60 * 1000;
@@ -1452,8 +1453,11 @@ function cryptoRandomFloat() {
 
 function cryptoRandomIndex(max) {
   if (!Number.isInteger(max) || max <= 0) return 0;
+  const upperBound = Math.floor(0x100000000 / max) * max;
   const values = new Uint32Array(1);
-  crypto.getRandomValues(values);
+  do {
+    crypto.getRandomValues(values);
+  } while (values[0] >= upperBound);
   return values[0] % max;
 }
 
@@ -1914,9 +1918,9 @@ function renderHome() {
           <div class="wheel-card-count">${count} ${count === 1 ? 'entry' : 'entries'}</div>
         </div>
         <div class="wheel-card-actions">
-          <label class="wheel-select-label" aria-label="Select ${escHtml(getWheelDisplayName(w))} for a scenario spin">
+          <label class="wheel-select-label">
             <span>Pick</span>
-            <input class="wheel-select-checkbox" type="checkbox" data-select-wheel="${w.id}" ${isSelected ? 'checked' : ''} />
+            <input class="wheel-select-checkbox" type="checkbox" data-select-wheel="${w.id}" aria-label="Select ${escHtml(getWheelDisplayName(w))} for a scenario spin" ${isSelected ? 'checked' : ''} />
           </label>
           <button class="icon-btn cog-btn" data-id="${w.id}" aria-label="Options for ${escHtml(getWheelDisplayName(w))}">⚙️</button>
           <div class="dropdown" id="dd-${w.id}" style="display:none">
@@ -2498,7 +2502,8 @@ function spinOneWheel(wheel, panelIndex, currentSpinSessionId) {
       : cryptoRandomIndex(avail.length);
     const segWeights = getSegmentWeights(avail, weights);
     const targetRotation = getWinnerCenterRotation(segWeights, winnerIdx);
-    const randOffset = (cryptoRandomFloat() - 0.5) * (segWeights[winnerIdx] * 2 * Math.PI) * 0.7;
+    /* Keep the final stop somewhere near the centre of the winning segment without drifting too close to an edge. */
+    const randOffset = (cryptoRandomFloat() - 0.5) * (segWeights[winnerIdx] * 2 * Math.PI) * WINNER_SEGMENT_OFFSET_FACTOR;
     const rawTarget = targetRotation - randOffset;
     const currentRotation = spinWheelRotations[panelIndex] || 0;
     const delta = getPositiveAngleDelta(currentRotation, rawTarget);
@@ -2754,6 +2759,7 @@ function fireConfetti(panelIndex) {
   if (!canvas) return;
   const burst = confetti.create(canvas, { resize: true, useWorker: true });
   const colors = [C_GREEN, C_PURPLE, '#ffffff', '#FFD700', '#FF69B4'];
+  /* First burst lands close to the result text, then mirrored side bursts widen the celebration around the panel. */
   burst({ particleCount: 120, spread: 80, startVelocity: 42, origin: { y: 0.55 }, colors });
   setTimeout(() => {
     burst({ particleCount: 70, spread: 110, startVelocity: 32, origin: { x: 0.15, y: 0.65 }, colors });
@@ -3106,7 +3112,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* Delegate clicks in wheels-list */
   document.getElementById('wheels-list').addEventListener('click', e => {
-    /* Scenario checkboxes use the separate change handler below; keep card clicks opening spins. */
+    /* Scenario checkboxes are handled by the dedicated change listener so card clicks can still open spins. */
     if (e.target.closest('[data-select-wheel]')) return;
 
     /* Click on wheel info → spin */
