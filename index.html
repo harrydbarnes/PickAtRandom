@@ -1721,7 +1721,7 @@ function saveCurrentWheel(andSpin) {
 
 /* ─── SPIN VIEW ─────────────────────────────────────────────────────────────── */
 function cancelSpin() {
-  if (!isSpinning && !spinAnimationFrameId) return;
+  if (!(isSpinning || spinAnimationFrameId)) return;
   spinSessionId++;
   if (spinAnimationFrameId) {
     cancelAnimationFrame(spinAnimationFrameId);
@@ -1942,7 +1942,8 @@ function doSpin() {
   if (avail.length < 2) return;
 
   isSpinning = true;
-  const currentSpinSessionId = ++spinSessionId;
+  spinSessionId++;
+  const currentSpinSessionId = spinSessionId;
   const spinBtn = document.getElementById('btn-spin');
   spinBtn.disabled = true;
   spinBtn.classList.add('spinning-pulse');
