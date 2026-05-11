@@ -1750,7 +1750,6 @@ function saveCurrentWheel(andSpin) {
     const w = getWheel(currentWheelId);
     if (w) {
       w.activity = activity;
-      w.taskTitle = name;
       w.name = name;
       w.entries = entries;
       w.settings.rememberSpun   = rememberSpun;
@@ -1759,7 +1758,7 @@ function saveCurrentWheel(andSpin) {
       w.settings.weights        = weights;
     }
   } else {
-    const w = { id: uid(), activity, taskTitle: name, name, entries, settings: { rememberSpun, spunEntries: [], weightLabel, reverseWeights, weights } };
+    const w = { id: uid(), activity, name, entries, settings: { rememberSpun, spunEntries: [], weightLabel, reverseWeights, weights } };
     wheels.push(w);
     currentWheelId = w.id;
   }
@@ -2189,7 +2188,6 @@ function shareResult() {
   const payload = {
     activity:    getWheelActivity(wheel),
     taskTitle:   getWheelTaskTitle(wheel),
-    name:        wheel.name,
     entries:     lastSpinEntries,
     winnerIndex: lastWinnerIdx,
     winnerName:  lastWinnerName,
