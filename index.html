@@ -12,6 +12,7 @@
       /* sRGB fallbacks first; display-p3 overrides where supported */
       --green: #3BBA9C;
       --green: color(display-p3 0.231 0.729 0.612);
+      --green-hover: rgba(59,186,156,0.82);
       --green-outer: #2ea184;
       --green-outer: color(display-p3 0.184 0.631 0.518);
       --purple: #2E3047;
@@ -20,6 +21,9 @@
       --font: system-ui, -apple-system, 'Segoe UI', sans-serif;
       --page-max: 980px;
       --content-max: 760px;
+      --tab-count: 2;
+      --tab-transition-duration: 0.32s;
+      --tab-fade-duration: 0.24s;
     }
 
     body {
@@ -232,17 +236,38 @@
 
     /* ── Tabs ───────────────────────────────────────────────────────────────── */
     .tabs {
+      --tab-gap: 0.35rem;
+      --tab-pad: 0.35rem;
+      --tab-highlight-width: calc((100% - (var(--tab-pad) * 2) - (var(--tab-gap) * (var(--tab-count) - 1))) / var(--tab-count));
+      position: relative;
       background: var(--purple);
-      padding: 0.3rem;
+      padding: var(--tab-pad);
       display: flex;
-      gap: 0.25rem;
+      gap: var(--tab-gap);
       width: 100%;
       max-width: var(--content-max);
       margin: 0 auto;
-      border-radius: 0 0 22px 22px;
-      overflow: hidden;
+      border-radius: 0 0 24px 24px;
+      isolation: isolate;
+    }
+    .tab-highlight {
+      position: absolute;
+      top: var(--tab-pad);
+      left: var(--tab-pad);
+      width: var(--tab-highlight-width);
+      height: calc(100% - (var(--tab-pad) * 2));
+      border-radius: 16px;
+      background: var(--green);
+      box-shadow: 0 10px 24px rgba(46,48,71,0.18);
+      transition: transform var(--tab-transition-duration) cubic-bezier(0.22, 1, 0.36, 1);
+      z-index: 0;
+    }
+    .tabs[data-active="settings"] .tab-highlight {
+      transform: translateX(calc(100% + var(--tab-gap)));
     }
     .tab-btn {
+      position: relative;
+      z-index: 1;
       flex: 1;
       padding: 0.6rem;
       background: transparent;
@@ -252,12 +277,47 @@
       font-size: 0.9rem;
       font-family: var(--font);
       cursor: pointer;
-      border-radius: 8px;
-      transition: background 0.15s, color 0.15s;
+      border-radius: 16px;
+      transition: color 0.22s ease, transform 0.22s ease;
     }
-    .tab-btn.active { background: var(--green); color: var(--purple); }
-    .tab-panel { display: none; }
-    .tab-panel.active { display: block; }
+    .tab-btn.active { color: var(--purple); }
+    .tab-btn:not(.active):hover { color: var(--green-hover); }
+    .tab-panels {
+      position: relative;
+      transition: height var(--tab-transition-duration) cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .tab-panel {
+      opacity: 0;
+      transform: translateY(16px);
+      pointer-events: none;
+      visibility: hidden;
+      position: absolute;
+      inset: 0;
+      transition:
+        opacity var(--tab-fade-duration) ease,
+        transform var(--tab-transition-duration) cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .tab-panel.active,
+    .tab-panel.is-entering,
+    .tab-panel.is-leaving {
+      visibility: visible;
+      transition-delay: 0s;
+    }
+    .tab-panel.active {
+      position: relative;
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    .tab-panel.is-entering {
+      position: relative;
+      z-index: 1;
+    }
+    .tab-panel.is-leaving {
+      opacity: 0;
+      transform: translateY(-12px);
+      z-index: 0;
+    }
 
     /* ── Form elements ──────────────────────────────────────────────────────── */
     .form-group { margin-bottom: 1.25rem; }
@@ -861,6 +921,15 @@
       .spin-btn { font-size: 1.1rem; padding: 0.85rem 2rem; }
       .popup-card { padding: 2rem 1.25rem 1.5rem; }
     }
+
+    @media (prefers-reduced-motion: reduce) {
+      .tab-highlight,
+      .tab-btn,
+      .tab-panels,
+      .tab-panel {
+        transition: none;
+      }
+    }
   </style>
 </head>
 <body>
@@ -895,75 +964,78 @@
     <div style="width:2.2rem"></div>
   </header>
 
-  <div class="tabs">
-    <button class="tab-btn active" data-tab="entries">✏️ Entries</button>
-    <button class="tab-btn" data-tab="settings">⚙️ Settings</button>
+  <div class="tabs" data-active="entries" role="tablist" aria-label="Setup sections">
+    <div class="tab-highlight" aria-hidden="true"></div>
+    <button class="tab-btn active" type="button" role="tab" aria-selected="true" data-tab="entries">✏️ Entries</button>
+    <button class="tab-btn" type="button" role="tab" aria-selected="false" data-tab="settings">⚙️ Settings</button>
   </div>
 
   <div class="content">
-    <!-- Entries tab -->
-    <div id="tab-entries" class="tab-panel active">
-      <div class="form-group">
-        <label class="form-label" for="wheel-name-input">What Are You Spinning For?</label>
-        <input
-          class="form-input"
-          id="wheel-name-input"
-          type="text"
-          placeholder="e.g. Who presents first?"
-          maxlength="80"
-          autocomplete="off"
-        />
+    <div class="tab-panels">
+      <!-- Entries tab -->
+      <div id="tab-entries" class="tab-panel active" role="tabpanel" aria-hidden="false">
+        <div class="form-group">
+          <label class="form-label" for="wheel-name-input">What Are You Spinning For?</label>
+          <input
+            class="form-input"
+            id="wheel-name-input"
+            type="text"
+            placeholder="e.g. Who presents first?"
+            maxlength="80"
+            autocomplete="off"
+          />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Entries</label>
+          <div id="entries-list"></div>
+          <button class="add-entry-btn" id="btn-add-entry">＋ Add Entry</button>
+          <p class="tip-text">💡 Paste a comma-separated list or rows from Excel into any entry field to bulk-add</p>
+          <input
+            id="excel-import-input"
+            type="file"
+            accept=".xlsx"
+            aria-label="Import entries and weights from an Excel file"
+            hidden
+          />
+          <label class="excel-import-zone" id="excel-import-zone" for="excel-import-input" role="button" tabindex="0">
+            <span class="excel-import-title">📥 Import from Excel</span>
+            <span class="excel-import-copy" id="excel-import-copy">Click to choose an Excel file</span>
+            <span class="excel-import-note">Use the first sheet with names in column A from A2 and numeric weights in column B from B2.</span>
+          </label>
+        </div>
       </div>
 
-      <div class="form-group">
-        <label class="form-label">Entries</label>
-        <div id="entries-list"></div>
-        <button class="add-entry-btn" id="btn-add-entry">＋ Add Entry</button>
-        <p class="tip-text">💡 Paste a comma-separated list or rows from Excel into any entry field to bulk-add</p>
-        <input
-          id="excel-import-input"
-          type="file"
-          accept=".xlsx"
-          aria-label="Import entries and weights from an Excel file"
-          hidden
-        />
-        <label class="excel-import-zone" id="excel-import-zone" for="excel-import-input" role="button" tabindex="0">
-          <span class="excel-import-title">📥 Import from Excel</span>
-          <span class="excel-import-copy" id="excel-import-copy">Click to choose an Excel file</span>
-          <span class="excel-import-note">Use the first sheet with names in column A from A2 and numeric weights in column B from B2.</span>
-        </label>
+      <!-- Settings tab -->
+      <div id="tab-settings" class="tab-panel" role="tabpanel" aria-hidden="true">
+        <div class="setting-row" id="setting-row-remember">
+          <label for="toggle-remember">Remember who's been spun — don't select again until reset</label>
+          <div class="setting-toggle" id="toggle-remember" role="switch" aria-checked="false"></div>
+        </div>
+        <button class="btn-secondary" id="btn-reset-spun-setup" style="width:100%">🔄 Reset Spun History</button>
+
+        <hr class="weights-divider"/>
+        <span class="weights-section-label">⚖️ Weighted Chances</span>
+
+        <div class="form-group">
+          <label class="form-label" for="weight-label-input">What Do the Numbers Represent?</label>
+          <input
+            class="form-input"
+            id="weight-label-input"
+            type="text"
+            placeholder="e.g. Recs Last Month"
+            maxlength="40"
+            autocomplete="off"
+          />
+        </div>
+
+        <div class="setting-row" id="setting-row-reverse-weights">
+          <label for="toggle-reverse-weights">Reverse — lower value = higher chance</label>
+          <div class="setting-toggle" id="toggle-reverse-weights" role="switch" aria-checked="false"></div>
+        </div>
+
+        <div id="weights-table-container"></div>
       </div>
-    </div>
-
-    <!-- Settings tab -->
-    <div id="tab-settings" class="tab-panel">
-      <div class="setting-row" id="setting-row-remember">
-        <label for="toggle-remember">Remember who's been spun — don't select again until reset</label>
-        <div class="setting-toggle" id="toggle-remember" role="switch" aria-checked="false"></div>
-      </div>
-      <button class="btn-secondary" id="btn-reset-spun-setup" style="width:100%">🔄 Reset Spun History</button>
-
-      <hr class="weights-divider"/>
-      <span class="weights-section-label">⚖️ Weighted Chances</span>
-
-      <div class="form-group">
-        <label class="form-label" for="weight-label-input">What Do the Numbers Represent?</label>
-        <input
-          class="form-input"
-          id="weight-label-input"
-          type="text"
-          placeholder="e.g. Recs Last Month"
-          maxlength="40"
-          autocomplete="off"
-        />
-      </div>
-
-      <div class="setting-row" id="setting-row-reverse-weights">
-        <label for="toggle-reverse-weights">Reverse — lower value = higher chance</label>
-        <div class="setting-toggle" id="toggle-reverse-weights" role="switch" aria-checked="false"></div>
-      </div>
-
-      <div id="weights-table-container"></div>
     </div>
   </div>
 
@@ -1522,9 +1594,69 @@ function addEntry() {
 }
 
 function switchTab(name) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + name));
+  const tabs = document.querySelector('.tabs');
+  const panels = document.querySelector('.tab-panels');
+  const next = document.getElementById('tab-' + name);
+  const current = document.querySelector('.tab-panel.active');
+
+  if (!tabs || !panels || !next || current === next) return;
+
   if (name === 'settings') renderWeightsTable();
+
+  const durationToMs = value => {
+    const trimmed = value.trim();
+    if (!trimmed) return 0;
+    const parsed = parseFloat(trimmed);
+    if (Number.isNaN(parsed)) return 0;
+    return trimmed.endsWith('ms') ? parsed : parsed * 1000;
+  };
+  const measurePanelHeight = panel => {
+    const needsEnteringState = !panel.classList.contains('is-entering');
+    if (needsEnteringState) panel.classList.add('is-entering');
+    const height = panel.getBoundingClientRect().height;
+    if (needsEnteringState) panel.classList.remove('is-entering');
+    return height;
+  };
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const transitionMs = durationToMs(getComputedStyle(document.documentElement).getPropertyValue('--tab-transition-duration'));
+  const currentHeight = current.getBoundingClientRect().height;
+  const nextHeight = measurePanelHeight(next);
+
+  tabs.dataset.active = name;
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    const isActive = btn.dataset.tab === name;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
+  document.querySelectorAll('.tab-panel').forEach(panel => {
+    panel.setAttribute('aria-hidden', panel !== next ? 'true' : 'false');
+  });
+
+  if (reduceMotion) {
+    current.classList.remove('active', 'is-leaving');
+    next.classList.remove('is-entering');
+    next.classList.add('active');
+    panels.style.height = '';
+    return;
+  }
+
+  panels.style.height = `${currentHeight}px`;
+  current.classList.add('is-leaving');
+  next.classList.add('is-entering');
+
+  requestAnimationFrame(() => {
+    current.classList.remove('active');
+    next.classList.add('active');
+    requestAnimationFrame(() => {
+      panels.style.height = `${nextHeight}px`;
+    });
+  });
+
+  window.setTimeout(() => {
+    current.classList.remove('is-leaving');
+    next.classList.remove('is-entering');
+    panels.style.height = '';
+  }, transitionMs);
 }
 
 function setToggle(el, on) {
