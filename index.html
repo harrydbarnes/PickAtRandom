@@ -131,7 +131,34 @@
     .wheel-card-info { flex: 1; min-width: 0; }
     .wheel-card-name { font-weight: 700; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .wheel-card-count { font-size: 0.82rem; opacity: 0.65; margin-top: 0.15rem; }
-    .wheel-card-actions { position: relative; flex-shrink: 0; }
+    .wheel-card-actions {
+      position: relative;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.45rem;
+    }
+    .wheel-select-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      opacity: 0.85;
+      cursor: pointer;
+    }
+    .wheel-select-checkbox {
+      accent-color: var(--green);
+      width: 1rem;
+      height: 1rem;
+      cursor: pointer;
+    }
+    .wheel-card.selected {
+      box-shadow: 0 0 0 3px rgba(59,186,156,0.48), 0 8px 28px rgba(0,0,0,0.18);
+    }
 
     /* ── Dropdown ───────────────────────────────────────────────────────────── */
     .dropdown {
@@ -180,6 +207,24 @@
       box-shadow: 0 2px 12px rgba(0,0,0,0.1);
     }
     .create-wheel-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+    .scenario-selection-bar {
+      margin-top: 1rem;
+      background: rgba(46,48,71,0.12);
+      border: 2px solid rgba(46,48,71,0.18);
+      border-radius: var(--radius);
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+    .scenario-selection-copy {
+      font-size: 0.9rem;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+    .scenario-spin-btn {
+      width: 100%;
+    }
 
     /* ── Footer / "Is this random?" ─────────────────────────────────────────── */
     .app-footer {
@@ -517,10 +562,56 @@
       max-width: var(--content-max);
       margin: 0 auto;
     }
+    .spin-scenario-list {
+      width: 100%;
+      display: grid;
+      gap: 1rem;
+    }
+    .spin-panel {
+      position: relative;
+      background: rgba(46,48,71,0.08);
+      border: 1px solid rgba(46,48,71,0.14);
+      border-radius: 24px;
+      padding: 1rem;
+      overflow: hidden;
+    }
+    .spin-panel-header {
+      text-align: center;
+      margin-bottom: 0.85rem;
+    }
+    .spin-panel-title {
+      font-size: 1rem;
+      font-weight: 900;
+      line-height: 1.3;
+    }
+    .spin-panel-subtitle {
+      margin-top: 0.35rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      opacity: 0.58;
+    }
+    .wheel-stage {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      margin-bottom: 0.9rem;
+      min-height: 220px;
+    }
+    .panel-confetti-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
     .wheel-wrapper {
       display: flex;
       flex-direction: column;
       align-items: center;
+      position: relative;
+      z-index: 1;
     }
     .wheel-pointer-el {
       font-size: 2.2rem;
@@ -530,14 +621,51 @@
       z-index: 2;
       filter: drop-shadow(0 3px 6px rgba(0,0,0,0.2));
     }
+    .spin-wheel-canvas,
     #wheel-canvas {
       border-radius: 50%;
       box-shadow: 0 8px 40px rgba(0,0,0,0.18);
       display: block;
       transition: box-shadow 0.3s;
     }
+    .spin-wheel-canvas.spinning,
     #wheel-canvas.spinning {
       box-shadow: 0 8px 60px rgba(46,48,71,0.45), 0 0 30px rgba(46,48,71,0.25);
+    }
+    .spin-panel-status {
+      min-height: 1.4rem;
+      text-align: center;
+      font-size: 0.82rem;
+      font-weight: 700;
+      opacity: 0.68;
+    }
+    .spin-announcement {
+      min-height: 3.25rem;
+      padding: 0.85rem 1rem;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(46,48,71,0.12);
+      text-align: center;
+      line-height: 1.5;
+      font-size: 0.95rem;
+      opacity: 0.75;
+      transition: transform 0.2s ease, opacity 0.2s ease, background 0.2s ease;
+    }
+    .spin-announcement.visible {
+      opacity: 1;
+      background: rgba(255,255,255,0.28);
+      transform: translateY(-2px);
+    }
+    .spin-announcement strong {
+      font-size: 1.05rem;
+    }
+    .spin-announcement-actions {
+      margin-top: 0.75rem;
+      display: flex;
+      justify-content: center;
+    }
+    .spin-announcement-share {
+      min-width: 170px;
     }
     .spin-btn {
       background: var(--purple);
@@ -969,6 +1097,12 @@
       .action-bar .btn-primary,
       .action-bar .btn-secondary { flex: 0 1 180px; }
       .create-wheel-btn { max-width: 280px; margin-left: auto; margin-right: auto; }
+      .scenario-selection-bar { align-items: center; }
+      .scenario-spin-btn { max-width: 260px; }
+      .spin-scenario-list[data-count="2"],
+      .spin-scenario-list[data-count="3"] {
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      }
     }
 
     @media (min-width: 900px) {
@@ -995,6 +1129,12 @@
       .action-bar { flex-direction: column; }
       .action-bar .btn-primary,
       .action-bar .btn-secondary { width: 100%; }
+      .wheel-card-actions {
+        align-items: stretch;
+      }
+      .wheel-select-label {
+        justify-content: flex-end;
+      }
     }
 
     @media (max-width: 480px) {
@@ -1025,6 +1165,10 @@
   <div class="content">
     <h2 class="section-title">🎡 Spin A Wheel</h2>
     <div id="wheels-list"></div>
+    <div class="scenario-selection-bar" id="scenario-selection-bar" style="display:none">
+      <div class="scenario-selection-copy" id="scenario-selection-copy">Select up to 3 wheels for a scenario spin.</div>
+      <button class="btn-primary scenario-spin-btn" id="btn-spin-selected" disabled>Spin selected wheels</button>
+    </div>
     <button class="create-wheel-btn" id="btn-create-new">＋ Create New Wheel</button>
   </div>
 
@@ -1152,10 +1296,9 @@
   </header>
 
   <div class="spin-content">
-    <div class="wheel-wrapper">
-      <div class="wheel-pointer-el" aria-hidden="true">▼</div>
-      <canvas id="wheel-canvas" width="360" height="360"></canvas>
-    </div>
+    <div class="spin-scenario-list" id="spin-scenario-list"></div>
+
+    <p class="spin-status" id="spin-status"></p>
 
     <div class="spin-actions">
       <button class="spin-btn" id="btn-spin">🎰 Spin!</button>
@@ -1170,8 +1313,6 @@
       <p class="recent-history-empty" id="recent-history-empty">No one has been chosen yet.</p>
       <ul class="recent-history-list" id="recent-history-list"></ul>
     </div>
-
-    <p class="spin-status" id="spin-status"></p>
 
     <div class="spun-history-section" id="spun-history-section" style="display:none">
       <div class="spun-history-header">
@@ -1266,6 +1407,7 @@ const SHARE_SPIN_DURATION_VARIANCE_MS = 800;
 const ZIP_EOCD_MIN_SIZE = 22;
 const ZIP_MAX_COMMENT_SIZE = 65535;
 const MAX_RECENT_CHOICES = 25;
+const MAX_SCENARIO_WHEELS = 3;
 const RECENT_HISTORY_BUTTON_LABEL = 'Recently Chosen';
 const RECENT_HISTORY_BUTTON_ICON = '🕘';
 const FUTURE_TIMESTAMP_TOLERANCE_MS = 5 * 60 * 1000;
@@ -1277,10 +1419,15 @@ const ZIP_CENTRAL_DIRECTORY_SIGNATURE = 0x02014b50;
 /* ─── App state ─────────────────────────────────────────────────────────────── */
 let wheels          = [];
 let currentWheelId  = null;
+let currentSpinWheelIds = [];
+let selectedScenarioWheelIds = [];
 let wheelRotation   = 0;
+let spinWheelRotations = [];
 let isSpinning      = false;
 let spinAnimationFrameId = null;
 let spinSessionId   = 0;
+let activeScenarioSpinIndex = -1;
+let scenarioResults = [];
 let lastWinnerIdx   = -1;
 let lastWinnerName  = '';
 let lastSpinEntries = [];
@@ -1654,6 +1801,75 @@ function getWheel(id) {
   return wheels.find(w => w.id === id) || null;
 }
 
+function pruneSelectedScenarioWheelIds() {
+  const validIds = new Set(wheels.map(wheel => wheel.id));
+  selectedScenarioWheelIds = [...new Set(selectedScenarioWheelIds)]
+    .filter(id => validIds.has(id))
+    .slice(0, MAX_SCENARIO_WHEELS);
+}
+
+function getCurrentSpinWheels() {
+  return currentSpinWheelIds.map(getWheel).filter(Boolean);
+}
+
+function isMultiSpinMode() {
+  return getCurrentSpinWheels().length > 1;
+}
+
+function setScenarioSelection(ids) {
+  selectedScenarioWheelIds = [...new Set(ids)].slice(0, MAX_SCENARIO_WHEELS);
+  renderHome();
+}
+
+function toggleScenarioWheelSelection(wheelId, shouldSelect) {
+  const alreadySelected = selectedScenarioWheelIds.includes(wheelId);
+  if (shouldSelect && !alreadySelected && selectedScenarioWheelIds.length >= MAX_SCENARIO_WHEELS) {
+    showToast(`⚠️ You can spin up to ${MAX_SCENARIO_WHEELS} wheels at once`);
+    renderHome();
+    return;
+  }
+
+  if (shouldSelect && !alreadySelected) {
+    selectedScenarioWheelIds = [...selectedScenarioWheelIds, wheelId];
+  } else if (!shouldSelect && alreadySelected) {
+    selectedScenarioWheelIds = selectedScenarioWheelIds.filter(id => id !== wheelId);
+  }
+
+  renderHome();
+}
+
+function getScenarioButtonText() {
+  const count = selectedScenarioWheelIds.length;
+  if (!count) return 'Spin selected wheels';
+  return count === 1 ? 'Spin 1 selected wheel' : `Spin ${count} selected wheels`;
+}
+
+function renderScenarioSelectionBar() {
+  const bar = document.getElementById('scenario-selection-bar');
+  const copy = document.getElementById('scenario-selection-copy');
+  const button = document.getElementById('btn-spin-selected');
+  if (!bar || !copy || !button) return;
+
+  pruneSelectedScenarioWheelIds();
+  const count = selectedScenarioWheelIds.length;
+  bar.style.display = wheels.length ? 'flex' : 'none';
+  copy.textContent = count
+    ? `${count} wheel${count === 1 ? '' : 's'} selected. Choose up to ${MAX_SCENARIO_WHEELS} for a scenario spin.`
+    : `Select up to ${MAX_SCENARIO_WHEELS} wheels for a scenario spin.`;
+  button.disabled = count === 0;
+  button.textContent = getScenarioButtonText();
+}
+
+function getSpinPanelStatusText(wheel, avail, result) {
+  if (activeScenarioSpinIndex >= 0 && currentSpinWheelIds[activeScenarioSpinIndex] === wheel.id && isSpinning) {
+    return 'Spinning...';
+  }
+  if (avail.length === 0) return '⚠️ No entries available to spin';
+  if (avail.length === 1) return '⚠️ Need at least 2 entries to spin';
+  if (result) return 'Done!';
+  return '';
+}
+
 /* Returns entries that are available to spin (non-empty, minus already-spun if setting on) */
 function availableEntries(wheel) {
   const base = wheel.entries.filter(e => e.trim() !== '');
@@ -1674,20 +1890,27 @@ function showView(name) {
 /* ─── HOME ──────────────────────────────────────────────────────────────────── */
 function renderHome() {
   const list = document.getElementById('wheels-list');
+  pruneSelectedScenarioWheelIds();
   if (!wheels.length) {
     list.innerHTML = '<div class="empty-state"><p>No wheels yet — create your first one! 🎡</p></div>';
+    renderScenarioSelectionBar();
     return;
   }
   list.innerHTML = wheels.map(w => {
     const count = w.entries.filter(e => e.trim() !== '').length;
+    const isSelected = selectedScenarioWheelIds.includes(w.id);
     return `
-      <div class="wheel-card" data-id="${w.id}">
+      <div class="wheel-card${isSelected ? ' selected' : ''}" data-id="${w.id}">
         <div class="wheel-card-icon" aria-hidden="true">🎡</div>
         <div class="wheel-card-info" data-spin="${w.id}">
           <div class="wheel-card-name">${escHtml(getWheelDisplayName(w))}</div>
           <div class="wheel-card-count">${count} ${count === 1 ? 'entry' : 'entries'}</div>
         </div>
         <div class="wheel-card-actions">
+          <label class="wheel-select-label" aria-label="Select ${escHtml(getWheelDisplayName(w))} for a scenario spin">
+            <span>Pick</span>
+            <input class="wheel-select-checkbox" type="checkbox" data-select-wheel="${w.id}" ${isSelected ? 'checked' : ''} />
+          </label>
           <button class="icon-btn cog-btn" data-id="${w.id}" aria-label="Options for ${escHtml(getWheelDisplayName(w))}">⚙️</button>
           <div class="dropdown" id="dd-${w.id}" style="display:none">
             <button data-action="edit"   data-id="${w.id}">✏️ Edit</button>
@@ -1696,6 +1919,7 @@ function renderHome() {
         </div>
       </div>`;
   }).join('');
+  renderScenarioSelectionBar();
 }
 
 /* ─── SETUP ─────────────────────────────────────────────────────────────────── */
@@ -1971,40 +2195,56 @@ function cancelSpin() {
     spinAnimationFrameId = null;
   }
   isSpinning = false;
-  document.getElementById('wheel-canvas')?.classList.remove('spinning');
+  activeScenarioSpinIndex = -1;
+  document.querySelectorAll('.spin-wheel-canvas').forEach(canvas => canvas.classList.remove('spinning'));
   document.getElementById('btn-spin')?.classList.remove('spinning-pulse');
 }
 
-function openSpin(wheelId) {
+function openSpin(wheelIds) {
   cancelSpin();
-  currentWheelId = wheelId;
+  const ids = (Array.isArray(wheelIds) ? wheelIds : [wheelIds])
+    .filter(Boolean)
+    .filter((id, index, arr) => arr.indexOf(id) === index)
+    .slice(0, MAX_SCENARIO_WHEELS);
+  const spinWheels = ids.map(getWheel).filter(Boolean);
+  if (!spinWheels.length) return;
+
+  currentSpinWheelIds = spinWheels.map(wheel => wheel.id);
+  currentWheelId = currentSpinWheelIds[0] || null;
   wheelRotation  = 0;
+  spinWheelRotations = currentSpinWheelIds.map(() => 0);
+  scenarioResults = currentSpinWheelIds.map(() => null);
+  activeScenarioSpinIndex = -1;
   lastWinnerIdx  = -1;
   lastWinnerName = '';
   lastSpinEntries = [];
   lastSpinWeights = null;
-
-  const wheel = getWheel(wheelId);
-  if (!wheel) return;
-
-  document.getElementById('spin-wheel-name-el').textContent = getWheelDisplayName(wheel);
-
-  const canvas = document.getElementById('wheel-canvas');
-  fitCanvas(canvas);
-
-  const avail = availableEntries(wheel);
-  const spinWeights = getEffectiveWeights(avail);
-  updateSpinStatus(wheel, avail);
-  drawWheel(canvas, avail, wheelRotation, spinWeights);
-  closeRecentHistory();
-  renderRecentHistory(wheel);
-  renderSpunChips(wheel);
+  document.getElementById('spin-wheel-name-el').textContent = spinWheels.length === 1
+    ? getWheelDisplayName(spinWheels[0])
+    : `Scenario Spin (${spinWheels.length})`;
+  const editButton = document.getElementById('btn-edit-wheel');
+  editButton.style.visibility = spinWheels.length === 1 ? 'visible' : 'hidden';
+  editButton.disabled = spinWheels.length !== 1;
 
   showView('spin');
+  renderSpinPanels();
+  updateSpinStatus();
+  closeRecentHistory();
+  if (spinWheels.length === 1) {
+    renderRecentHistory(spinWheels[0]);
+    renderSpunChips(spinWheels[0]);
+  } else {
+    document.getElementById('recent-history-panel').hidden = true;
+    document.getElementById('spun-history-section').style.display = 'none';
+  }
 }
 
-function fitCanvas(canvas) {
-  const size = Math.min(window.innerWidth - 48, 380);
+function fitCanvas(canvas, wheelCount = 1) {
+  if (!canvas) return;
+  const panel = canvas.closest('.spin-panel');
+  const panelWidth = panel ? panel.clientWidth - 32 : window.innerWidth - 48;
+  const maxSize = wheelCount > 1 ? 260 : 380;
+  const size = Math.max(180, Math.min(panelWidth, window.innerWidth - 48, maxSize));
   canvas.width  = size;
   canvas.height = size;
 }
@@ -2015,17 +2255,80 @@ function fitShareCanvas(canvas) {
   canvas.height = size;
 }
 
-function updateSpinStatus(wheel, avail) {
+function renderSpinPanels() {
+  const list = document.getElementById('spin-scenario-list');
+  const spinWheels = getCurrentSpinWheels();
+  if (!list) return;
+
+  list.dataset.count = String(spinWheels.length || 0);
+  list.innerHTML = spinWheels.map((wheel, index) => {
+    const avail = availableEntries(wheel);
+    const result = scenarioResults[index];
+    const announcement = result
+      ? `<strong>${escHtml(result.winnerName)}</strong> was selected for <em>${escHtml(getWheelSelectionText(wheel))}</em>.`
+      : 'Spin to see who gets picked for this wheel.';
+    const shareAction = spinWheels.length === 1 && result
+      ? `<div class="spin-announcement-actions"><button class="recent-btn spin-announcement-share" type="button" data-spin-share="${index}">🔗 Share Result</button></div>`
+      : '';
+
+    return `
+      <section class="spin-panel" data-spin-panel="${index}">
+        <div class="spin-panel-header">
+          <div class="spin-panel-title">${escHtml(getWheelDisplayName(wheel))}</div>
+          <div class="spin-panel-subtitle">Wheel ${index + 1}</div>
+        </div>
+        <div class="wheel-stage">
+          <canvas class="panel-confetti-canvas" data-confetti-canvas="${index}"></canvas>
+          <div class="wheel-wrapper">
+            <div class="wheel-pointer-el" aria-hidden="true">▼</div>
+            <canvas class="spin-wheel-canvas" data-wheel-index="${index}" width="360" height="360"></canvas>
+          </div>
+        </div>
+        <p class="spin-panel-status">${escHtml(getSpinPanelStatusText(wheel, avail, result))}</p>
+        <div class="spin-announcement${result ? ' visible' : ''}" aria-live="polite">
+          <div>${announcement}</div>
+          ${shareAction}
+        </div>
+      </section>
+    `;
+  }).join('');
+
+  spinWheels.forEach((wheel, index) => {
+    const canvas = list.querySelector(`[data-wheel-index="${index}"]`);
+    const avail = availableEntries(wheel);
+    fitCanvas(canvas, spinWheels.length);
+    drawWheel(canvas, avail, spinWheelRotations[index] || 0, getEffectiveWeightsForWheel(wheel, avail));
+  });
+}
+
+function updateSpinStatus() {
   const btn    = document.getElementById('btn-spin');
   const status = document.getElementById('spin-status');
-  if (avail.length < 2) {
-    btn.disabled    = true;
-    status.textContent = avail.length === 0
-      ? '⚠️ No entries available to spin'
-      : '⚠️ Need at least 2 entries to spin';
+  const spinWheels = getCurrentSpinWheels();
+  const invalidWheel = spinWheels.find(wheel => availableEntries(wheel).length < 2);
+  const singleWheel = spinWheels.length === 1 ? spinWheels[0] : null;
+  const hasResults = scenarioResults.some(Boolean);
+
+  btn.disabled = isSpinning || !spinWheels.length || !!invalidWheel;
+  if (invalidWheel) {
+    const invalidEntries = availableEntries(invalidWheel);
+    status.textContent = invalidEntries.length === 0
+      ? `⚠️ ${getWheelDisplayName(invalidWheel)} has no entries left to spin`
+      : `⚠️ ${getWheelDisplayName(invalidWheel)} needs at least 2 entries`;
+  } else if (isSpinning && activeScenarioSpinIndex >= 0) {
+    status.textContent = `Spinning wheel ${activeScenarioSpinIndex + 1} of ${spinWheels.length}...`;
+  } else if (hasResults && spinWheels.length > 1) {
+    status.textContent = 'All selected wheels have been assigned.';
   } else {
-    btn.disabled    = false;
     status.textContent = '';
+  }
+
+  const recentButton = document.getElementById('btn-toggle-recent');
+  const recentPanel = document.getElementById('recent-history-panel');
+  if (recentButton) recentButton.hidden = !singleWheel;
+  if (recentPanel && !singleWheel) recentPanel.hidden = true;
+  if (!singleWheel) {
+    document.getElementById('spun-history-section').style.display = 'none';
   }
 }
 
@@ -2177,81 +2480,107 @@ function getRandomExtraSpins(minSpins, maxSpins) {
   return minSpins + Math.floor(cryptoRandomFloat() * (maxSpins - minSpins + 1));
 }
 
-function doSpin() {
+function spinOneWheel(wheel, panelIndex, currentSpinSessionId) {
+  return new Promise(resolve => {
+    const avail = availableEntries(wheel);
+    const weights = getEffectiveWeightsForWheel(wheel, avail);
+    const winnerIdx = weights
+      ? weightedRandom(weights)
+      : (() => { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % avail.length; })();
+    const segWeights = getSegmentWeights(avail, weights);
+    const targetRotation = getWinnerCenterRotation(segWeights, winnerIdx);
+    const randOffset = (cryptoRandomFloat() - 0.5) * (segWeights[winnerIdx] * 2 * Math.PI) * 0.7;
+    const rawTarget = targetRotation - randOffset;
+    const currentRotation = spinWheelRotations[panelIndex] || 0;
+    const delta = getPositiveAngleDelta(currentRotation, rawTarget);
+    const extraSpins = getRandomExtraSpins(6, 9);
+    const totalDelta = extraSpins * 2 * Math.PI + delta;
+    const duration = 5200 + cryptoRandomFloat() * 2000;
+    const startTime = performance.now();
+    const startRot = currentRotation;
+    const canvas = document.querySelector(`.spin-wheel-canvas[data-wheel-index="${panelIndex}"]`);
+    if (!canvas) {
+      resolve(false);
+      return;
+    }
+
+    canvas.classList.add('spinning');
+    if (currentSpinWheelIds.length === 1) {
+      lastSpinEntries = [...avail];
+      lastSpinWeights = weights ? [...weights] : null;
+      lastWinnerIdx = winnerIdx;
+      lastWinnerName = avail[winnerIdx];
+    }
+
+    function frame(now) {
+      if (currentSpinSessionId !== spinSessionId) {
+        canvas.classList.remove('spinning');
+        resolve(false);
+        return;
+      }
+
+      const progress = Math.min((now - startTime) / duration, 1);
+      spinWheelRotations[panelIndex] = startRot + totalDelta * easeOutQuart(progress);
+      if (currentSpinWheelIds.length === 1) wheelRotation = spinWheelRotations[panelIndex];
+      drawWheel(canvas, avail, spinWheelRotations[panelIndex], weights);
+
+      if (progress < 1) {
+        spinAnimationFrameId = requestAnimationFrame(frame);
+        return;
+      }
+
+      spinAnimationFrameId = null;
+      canvas.classList.remove('spinning');
+      onSpinComplete(wheel, avail, winnerIdx, panelIndex);
+      resolve(true);
+    }
+
+    spinAnimationFrameId = requestAnimationFrame(frame);
+  });
+}
+
+async function doSpin() {
   if (isSpinning) return;
 
-  const wheel = getWheel(currentWheelId);
-  if (!wheel) return;
-
-  const avail = availableEntries(wheel);
-  if (avail.length < 2) return;
+  const spinWheels = getCurrentSpinWheels();
+  if (!spinWheels.length || spinWheels.some(wheel => availableEntries(wheel).length < 2)) {
+    updateSpinStatus();
+    return;
+  }
 
   isSpinning = true;
   spinSessionId++;
   const currentSpinSessionId = spinSessionId;
+  activeScenarioSpinIndex = -1;
+  scenarioResults = currentSpinWheelIds.map(() => null);
+  lastWinnerIdx = -1;
+  lastWinnerName = '';
+  lastSpinEntries = [];
+  lastSpinWeights = null;
+  renderSpinPanels();
+  updateSpinStatus();
+
   const spinBtn = document.getElementById('btn-spin');
   spinBtn.disabled = true;
   spinBtn.classList.add('spinning-pulse');
 
-  /* Compute effective weights for available entries */
-  const weights = getEffectiveWeights(avail);
-  lastSpinEntries = [...avail];
-  lastSpinWeights = weights ? [...weights] : null;
-
-  /* Cryptographically secure (weighted) random winner */
-  const winnerIdx = weights
-    ? weightedRandom(weights)
-    : (() => { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % avail.length; })();
-  lastWinnerIdx  = winnerIdx;
-  lastWinnerName = avail[winnerIdx];
-
-  /* Compute the cumulative start-angle and arc-size of the winner's segment */
-  const N = avail.length;
-  const segWeights = (weights && weights.length === N) ? weights : avail.map(() => 1 / N);
-  let cumAngleAtWinner = 0;
-  for (let i = 0; i < winnerIdx; i++) cumAngleAtWinner += segWeights[i] * 2 * Math.PI;
-  const winnerSegAngle = segWeights[winnerIdx] * 2 * Math.PI;
-
-  /* Target rotation: put centre of winner segment under the pointer (top = 3π/2) */
-  const randOffset = (Math.random() - 0.5) * winnerSegAngle * 0.7;
-  const rawTarget  = (3 * Math.PI / 2) - (cumAngleAtWinner + winnerSegAngle / 2) - randOffset;
-
-  /* Forward delta from current wheel rotation, normalised to [0, 2π) so the wheel always spins forward */
-  const currentAngle = wheelRotation % (2 * Math.PI);
-  const delta = ((rawTarget - currentAngle) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
-
-  /* Add 6–9 full spins for drama */
-  const extraSpins = 6 + Math.floor(Math.random() * 4);
-  const totalDelta = extraSpins * 2 * Math.PI + delta;
-
-  const startRot  = wheelRotation;
-  const duration  = 5200 + Math.random() * 2000; /* 5.2 – 7.2 s */
-  const startTime = performance.now();
-
-  const canvas = document.getElementById('wheel-canvas');
-  canvas.classList.add('spinning');
-
-  function frame(now) {
-    if (currentSpinSessionId !== spinSessionId) return; /* Skip if this spin session was cancelled. */
-    const elapsed  = now - startTime;
-    const progress = Math.min(elapsed / duration, 1);
-    wheelRotation  = startRot + totalDelta * easeOutQuart(progress);
-    drawWheel(canvas, avail, wheelRotation, weights);
-
-    if (progress < 1) {
-      spinAnimationFrameId = requestAnimationFrame(frame);
-    } else {
-      spinAnimationFrameId = null;
-      canvas.classList.remove('spinning');
-      spinBtn.classList.remove('spinning-pulse');
-      isSpinning = false;
-      onSpinComplete(wheel, avail, winnerIdx);
-    }
+  for (let i = 0; i < spinWheels.length; i++) {
+    if (currentSpinSessionId !== spinSessionId) return;
+    activeScenarioSpinIndex = i;
+    renderSpinPanels();
+    updateSpinStatus();
+    const completed = await spinOneWheel(spinWheels[i], i, currentSpinSessionId);
+    if (!completed || currentSpinSessionId !== spinSessionId) return;
   }
-  spinAnimationFrameId = requestAnimationFrame(frame);
+
+  activeScenarioSpinIndex = -1;
+  isSpinning = false;
+  spinBtn.classList.remove('spinning-pulse');
+  renderSpinPanels();
+  updateSpinStatus();
 }
 
-function onSpinComplete(wheel, avail, winnerIdx) {
+function onSpinComplete(wheel, avail, winnerIdx, panelIndex) {
   const name = avail[winnerIdx];
   wheel.settings.recentSelections = [
     ...(wheel.settings.recentSelections || []),
@@ -2263,22 +2592,21 @@ function onSpinComplete(wheel, avail, winnerIdx) {
     if (!wheel.settings.spunEntries.includes(name)) {
       wheel.settings.spunEntries.push(name);
     }
-    renderSpunChips(wheel);
-
-    const remaining = availableEntries(wheel);
-    updateSpinStatus(wheel, remaining);
-
-    /* Redraw wheel with updated available entries */
-    const canvas = document.getElementById('wheel-canvas');
-    drawWheel(canvas, remaining, wheelRotation, getEffectiveWeights(remaining));
   }
 
+  scenarioResults[panelIndex] = {
+    wheelId: wheel.id,
+    winnerName: name,
+  };
   saveWheels();
-  renderRecentHistory(wheel);
+  renderSpinPanels();
+  if (currentSpinWheelIds.length === 1) {
+    renderRecentHistory(wheel);
+    renderSpunChips(wheel);
+  }
 
   playKazoo();
-  fireConfetti();
-  showResultPopup(name, wheel);
+  fireConfetti(panelIndex);
 }
 
 function closeRecentHistory() {
@@ -2411,13 +2739,16 @@ function playKazoo() {
 }
 
 /* ─── CONFETTI ──────────────────────────────────────────────────────────────── */
-function fireConfetti() {
+function fireConfetti(panelIndex) {
   if (typeof confetti === 'undefined') return;
+  const canvas = document.querySelector(`[data-confetti-canvas="${panelIndex}"]`);
+  if (!canvas) return;
+  const burst = confetti.create(canvas, { resize: true, useWorker: true });
   const colors = [C_GREEN, C_PURPLE, '#ffffff', '#FFD700', '#FF69B4'];
-  confetti({ particleCount: 120, spread: 80, startVelocity: 42, origin: { y: 0.5 }, colors });
+  burst({ particleCount: 120, spread: 80, startVelocity: 42, origin: { y: 0.55 }, colors });
   setTimeout(() => {
-    confetti({ particleCount: 70, spread: 110, startVelocity: 32, origin: { x: 0.15, y: 0.65 }, colors });
-    confetti({ particleCount: 70, spread: 110, startVelocity: 32, origin: { x: 0.85, y: 0.65 }, colors });
+    burst({ particleCount: 70, spread: 110, startVelocity: 32, origin: { x: 0.15, y: 0.65 }, colors });
+    burst({ particleCount: 70, spread: 110, startVelocity: 32, origin: { x: 0.85, y: 0.65 }, colors });
   }, 280);
 }
 
@@ -2691,8 +3022,7 @@ function getWeightValues() {
 }
 
 /* Return normalised weight array for the given entries, or null (= equal weights) */
-function getEffectiveWeights(entries) {
-  const wheel = getWheel(currentWheelId);
+function getEffectiveWeightsForWheel(wheel, entries) {
   if (!wheel) return null;
 
   const weightMap  = wheel.settings.weights       || {};
@@ -2714,6 +3044,10 @@ function getEffectiveWeights(entries) {
   if (total === 0) return null; /* all zero → fall back to equal */
 
   return values.map(v => v / total);
+}
+
+function getEffectiveWeights(entries) {
+  return getEffectiveWeightsForWheel(getWheel(currentWheelId), entries);
 }
 
 /* Crypto-secure weighted random index */
@@ -2748,6 +3082,11 @@ document.addEventListener('DOMContentLoaded', () => {
     openSetup(null);
   });
 
+  document.getElementById('btn-spin-selected').addEventListener('click', () => {
+    if (!selectedScenarioWheelIds.length) return;
+    openSpin(selectedScenarioWheelIds);
+  });
+
   document.getElementById('btn-is-random').addEventListener('click', () => {
     const panel  = document.getElementById('random-info-panel');
     const btn    = document.getElementById('btn-is-random');
@@ -2758,6 +3097,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* Delegate clicks in wheels-list */
   document.getElementById('wheels-list').addEventListener('click', e => {
+    if (e.target.closest('[data-select-wheel]')) return;
+
     /* Click on wheel info → spin */
     const spinTarget = e.target.closest('[data-spin]');
     if (spinTarget) { openSpin(spinTarget.dataset.spin); return; }
@@ -2785,11 +3126,18 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (action.dataset.action === 'delete') {
         showConfirm('🗑️ Delete this wheel?', () => {
           wheels = wheels.filter(w => w.id !== id);
+          selectedScenarioWheelIds = selectedScenarioWheelIds.filter(selectedId => selectedId !== id);
           saveWheels();
           renderHome();
         });
       }
     }
+  });
+
+  document.getElementById('wheels-list').addEventListener('change', e => {
+    const checkbox = e.target.closest('[data-select-wheel]');
+    if (!checkbox) return;
+    toggleScenarioWheelSelection(checkbox.dataset.selectWheel, checkbox.checked);
   });
 
   /* Close dropdowns on outside click */
@@ -2911,6 +3259,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-spin').addEventListener('click', doSpin);
   document.getElementById('btn-toggle-recent').addEventListener('click', toggleRecentHistory);
+  document.getElementById('spin-scenario-list').addEventListener('click', e => {
+    const shareBtn = e.target.closest('[data-spin-share]');
+    if (!shareBtn || currentSpinWheelIds.length !== 1) return;
+    shareResult();
+  });
 
   document.getElementById('btn-reset-from-spin').addEventListener('click', () => {
     const wheel = getWheel(currentWheelId);
@@ -2919,9 +3272,10 @@ document.addEventListener('DOMContentLoaded', () => {
     saveWheels();
     renderSpunChips(wheel);
     const avail = availableEntries(wheel);
-    updateSpinStatus(wheel, avail);
     wheelRotation = 0;
-    drawWheel(document.getElementById('wheel-canvas'), avail, 0, getEffectiveWeights(avail));
+    spinWheelRotations = [0];
+    renderSpinPanels();
+    updateSpinStatus();
   });
 
   /* ── Popup ── */
@@ -2935,9 +3289,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('btn-spin-again').addEventListener('click', () => {
     hideResultPopup();
-    /* Re-enable button if entries remain */
-    const wheel = getWheel(currentWheelId);
-    if (wheel) updateSpinStatus(wheel, availableEntries(wheel));
+    updateSpinStatus();
   });
 
   /* ── Share view ── */
@@ -2984,12 +3336,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('resize', () => {
     updateExcelImportZone();
     if (document.getElementById('view-spin').classList.contains('active')) {
-      const wheel = getWheel(currentWheelId);
-      if (!wheel) return;
-      const canvas = document.getElementById('wheel-canvas');
-      fitCanvas(canvas);
-      const avail = availableEntries(wheel);
-      drawWheel(canvas, avail, wheelRotation, getEffectiveWeights(avail));
+      renderSpinPanels();
       return;
     }
     if (document.getElementById('view-share').classList.contains('active') && sharedResultData) {
