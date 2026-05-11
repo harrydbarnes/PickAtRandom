@@ -1664,17 +1664,18 @@ function drawWheel(canvas, entries, rotation, weights) {
     ctx.textBaseline = 'middle';
 
     /* Clip text to segment radial area */
-    const minTextStart = 18;   /* Keep labels clear of the hub. */
+    const minTextStart   = 18; /* Keep labels clear of the hub. */
     const minEdgePadding = 12; /* Keep labels away from the outer ring. */
-    const textStart = Math.min(
-      Math.max(minTextStart, R * 0.12),
-      Math.max(1, R - minEdgePadding - 1)
-    );
-    const edgePadding = Math.min(
-      Math.max(minEdgePadding, R * 0.08),
-      Math.max(0, R - textStart - 1)
-    );
-    const maxTextWidth = Math.max(1, R - textStart - edgePadding);
+    const minTextWidth   = 24; /* Keep enough room for short readable labels. */
+    let textStart        = Math.max(minTextStart, R * 0.12);
+    let edgePadding      = Math.max(minEdgePadding, R * 0.08);
+    let maxTextWidth     = R - textStart - edgePadding;
+
+    if (maxTextWidth < minTextWidth) {
+      textStart    = Math.max(8, R * 0.08);
+      edgePadding  = Math.max(6, R * 0.04);
+      maxTextWidth = Math.max(12, R - textStart - edgePadding);
+    }
     ctx.save();
     ctx.beginPath();
     ctx.rect(textStart, -fontSize * 0.9, maxTextWidth, fontSize * 1.8);
