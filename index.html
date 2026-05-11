@@ -1489,7 +1489,7 @@ function renderHome() {
   }
   list.innerHTML = wheels.map(w => {
     const count = w.entries.filter(e => e.trim() !== '').length;
-      return `
+    return `
       <div class="wheel-card" data-id="${w.id}">
         <div class="wheel-card-icon" aria-hidden="true">🎡</div>
         <div class="wheel-card-info" data-spin="${w.id}">
@@ -1515,7 +1515,7 @@ function openSetup(wheelId) {
   document.getElementById('setup-title').textContent = wheel ? 'Edit Wheel' : 'Setup My Wheel';
   document.getElementById('activity-input').value     = wheel ? getWheelActivity(wheel) : '';
   document.getElementById('activity-input').classList.remove('input-error');
-  document.getElementById('wheel-name-input').value   = wheel ? wheel.name : '';
+  document.getElementById('wheel-name-input').value   = wheel ? getWheelTaskTitle(wheel) : '';
   document.getElementById('wheel-name-input').classList.remove('input-error');
 
   /* Seed entries: use saved list or 3 blanks; always ensure ≥ 1 empty at end */
