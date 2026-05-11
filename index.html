@@ -987,7 +987,7 @@
           <label class="form-label">What Are You Spinning For?</label>
           <div class="split-form-group">
             <div class="form-group">
-              <label class="form-label" for="activity-input">Activity</label>
+              <label class="form-label" for="activity-input">Activity Type</label>
               <input
                 class="form-input"
                 id="activity-input"
@@ -1198,6 +1198,8 @@ let lastSpinWeights = null;
 let shareWheelRotation = 0;
 let sharedResultData   = null;
 let isShareSpinning    = false;
+const WHEEL_DISPLAY_SEPARATOR = ' — ';
+const WHEEL_SELECTION_SEPARATOR = ' ';
 
 /* ─── Utilities ─────────────────────────────────────────────────────────────── */
 function uid() {
@@ -1220,7 +1222,7 @@ function escHtml(str) {
 }
 
 function getWheelTaskTitle(wheel) {
-  return (wheel?.name || '').trim();
+  return (wheel?.taskTitle || wheel?.name || '').trim();
 }
 
 function getWheelActivity(wheel) {
@@ -1230,14 +1232,14 @@ function getWheelActivity(wheel) {
 function getWheelDisplayName(wheel) {
   const activity = getWheelActivity(wheel);
   const taskTitle = getWheelTaskTitle(wheel);
-  if (activity && taskTitle) return `${activity} — ${taskTitle}`;
+  if (activity && taskTitle) return `${activity}${WHEEL_DISPLAY_SEPARATOR}${taskTitle}`;
   return taskTitle || activity || 'Unnamed Wheel';
 }
 
 function getWheelSelectionText(wheel) {
   const activity = getWheelActivity(wheel);
   const taskTitle = getWheelTaskTitle(wheel);
-  if (activity && taskTitle) return `${activity} ${taskTitle}`;
+  if (activity && taskTitle) return `${activity}${WHEEL_SELECTION_SEPARATOR}${taskTitle}`;
   return taskTitle || activity || 'take on this task';
 }
 
@@ -1748,6 +1750,7 @@ function saveCurrentWheel(andSpin) {
     const w = getWheel(currentWheelId);
     if (w) {
       w.activity = activity;
+      w.taskTitle = name;
       w.name = name;
       w.entries = entries;
       w.settings.rememberSpun   = rememberSpun;
@@ -1756,7 +1759,7 @@ function saveCurrentWheel(andSpin) {
       w.settings.weights        = weights;
     }
   } else {
-    const w = { id: uid(), activity, name, entries, settings: { rememberSpun, spunEntries: [], weightLabel, reverseWeights, weights } };
+    const w = { id: uid(), activity, taskTitle: name, name, entries, settings: { rememberSpun, spunEntries: [], weightLabel, reverseWeights, weights } };
     wheels.push(w);
     currentWheelId = w.id;
   }
@@ -2185,6 +2188,7 @@ function shareResult() {
 
   const payload = {
     activity:    getWheelActivity(wheel),
+    taskTitle:   getWheelTaskTitle(wheel),
     name:        wheel.name,
     entries:     lastSpinEntries,
     winnerIndex: lastWinnerIdx,
