@@ -1086,6 +1086,11 @@ let spinAnimationFrame = null;
 let spinSessionId      = 0;
 
 /* ─── Utilities ─────────────────────────────────────────────────────────────── */
+function resetWinnerState() {
+  lastWinnerIdx  = -1;
+  lastWinnerName = '';
+}
+
 function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
@@ -1570,8 +1575,7 @@ function saveCurrentWheel(andSpin) {
 function openSpin(wheelId) {
   currentWheelId = wheelId;
   wheelRotation  = 0;
-  lastWinnerIdx  = -1;
-  lastWinnerName = '';
+  resetWinnerState();
 
   const wheel = getWheel(wheelId);
   if (!wheel) return;
@@ -1725,8 +1729,7 @@ function easeOutQuart(t) {
 
 function cancelSpinAnimation() {
   spinSessionId++;
-  lastWinnerIdx  = -1;
-  lastWinnerName = '';
+  resetWinnerState();
 
   if (spinAnimationFrame !== null) {
     cancelAnimationFrame(spinAnimationFrame);
