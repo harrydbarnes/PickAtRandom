@@ -1103,6 +1103,12 @@ function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
+function secureRandomFloat() {
+  const values = new Uint32Array(1);
+  crypto.getRandomValues(values);
+  return values[0] / 0x100000000;
+}
+
 function escHtml(str) {
   return String(str)
     .replace(/&/g, '&amp;')
@@ -1751,7 +1757,7 @@ function getWinnerCenterRotation(segWeights, winnerIdx) {
   return (3 * Math.PI / 2) - (cumAngle + winnerSegAngle / 2);
 }
 
-function normalizeAngleDelta(fromAngle, toAngle) {
+function getPositiveAngleDelta(fromAngle, toAngle) {
   return ((toAngle - (fromAngle % (2 * Math.PI))) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
 }
 
@@ -1997,11 +2003,11 @@ function loadShareView() {
 
       const segWeights = getSegmentWeights(data.entries, data.weights);
       const targetRotation = getWinnerCenterRotation(segWeights, data.winnerIndex);
-      const delta = normalizeAngleDelta(shareWheelRotation, targetRotation);
-      const extraSpins = SHARE_MIN_EXTRA_SPINS + Math.floor(Math.random() * SHARE_EXTRA_SPIN_VARIANCE);
+      const delta = getPositiveAngleDelta(shareWheelRotation, targetRotation);
+      const extraSpins = SHARE_MIN_EXTRA_SPINS + Math.floor(secureRandomFloat() * SHARE_EXTRA_SPIN_VARIANCE);
       const totalDelta = extraSpins * 2 * Math.PI + delta;
       const startRot = shareWheelRotation;
-      const duration = 4200 + Math.random() * 800;
+      const duration = 4200 + secureRandomFloat() * 800;
       const startTime = performance.now();
 
       canvas.classList.add('spinning');
