@@ -1721,8 +1721,9 @@ function saveCurrentWheel(andSpin) {
 
 /* ─── SPIN VIEW ─────────────────────────────────────────────────────────────── */
 function cancelSpin() {
+  if (!isSpinning && !spinAnimationFrameId) return;
+  spinSessionId++;
   if (spinAnimationFrameId) {
-    spinSessionId++;
     cancelAnimationFrame(spinAnimationFrameId);
     spinAnimationFrameId = null;
   }
