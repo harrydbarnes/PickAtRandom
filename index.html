@@ -20,6 +20,7 @@
       --font: system-ui, -apple-system, 'Segoe UI', sans-serif;
       --page-max: 980px;
       --content-max: 760px;
+      --tab-count: 2;
       --tab-transition-duration: 0.32s;
       --tab-fade-duration: 0.24s;
     }
@@ -251,7 +252,7 @@
       position: absolute;
       top: var(--tab-pad);
       left: var(--tab-pad);
-      width: calc((100% - (var(--tab-pad) * 2) - var(--tab-gap)) / 2);
+      width: calc((100% - (var(--tab-pad) * 2) - (var(--tab-gap) * (var(--tab-count) - 1))) / var(--tab-count));
       height: calc(100% - (var(--tab-pad) * 2));
       border-radius: 16px;
       background: var(--green);
@@ -292,8 +293,7 @@
       inset: 0;
       transition:
         opacity var(--tab-fade-duration) ease,
-        transform var(--tab-transition-duration) cubic-bezier(0.22, 1, 0.36, 1),
-        visibility 0s linear var(--tab-transition-duration);
+        transform var(--tab-transition-duration) cubic-bezier(0.22, 1, 0.36, 1);
     }
     .tab-panel.active,
     .tab-panel.is-entering,
@@ -1582,10 +1582,17 @@ function switchTab(name) {
     if (!trimmed) return 0;
     return trimmed.endsWith('ms') ? parseFloat(trimmed) : parseFloat(trimmed) * 1000;
   };
+  const measurePanelHeight = panel => {
+    const needsEnteringState = !panel.classList.contains('is-entering');
+    if (needsEnteringState) panel.classList.add('is-entering');
+    const height = panel.getBoundingClientRect().height;
+    if (needsEnteringState) panel.classList.remove('is-entering');
+    return height;
+  };
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const transitionMs = durationToMs(getComputedStyle(document.documentElement).getPropertyValue('--tab-transition-duration'));
   const currentHeight = current.getBoundingClientRect().height;
-  const nextHeight = next.scrollHeight;
+  const nextHeight = measurePanelHeight(next);
 
   tabs.dataset.active = name;
   document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -1612,7 +1619,9 @@ function switchTab(name) {
   requestAnimationFrame(() => {
     current.classList.remove('active');
     next.classList.add('active');
-    panels.style.height = `${nextHeight}px`;
+    requestAnimationFrame(() => {
+      panels.style.height = `${nextHeight}px`;
+    });
   });
 
   window.setTimeout(() => {
