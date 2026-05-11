@@ -1164,7 +1164,7 @@ let wheels          = [];
 let currentWheelId  = null;
 let wheelRotation   = 0;
 let isSpinning      = false;
-let spinAnimationFrameId = 0;
+let spinAnimationFrameId = null;
 let spinSessionId   = 0;
 let lastWinnerIdx   = -1;
 let lastWinnerName  = '';
@@ -1724,7 +1724,7 @@ function cancelSpin() {
   spinSessionId++;
   if (spinAnimationFrameId) {
     cancelAnimationFrame(spinAnimationFrameId);
-    spinAnimationFrameId = 0;
+    spinAnimationFrameId = null;
   }
   isSpinning = false;
   document.getElementById('wheel-canvas')?.classList.remove('spinning');
@@ -1985,7 +1985,7 @@ function doSpin() {
   canvas.classList.add('spinning');
 
   function frame(now) {
-    if (currentSpinSessionId !== spinSessionId) return;
+    if (currentSpinSessionId !== spinSessionId) return; /* Cancellation cleanup is handled centrally in cancelSpin(). */
     const elapsed  = now - startTime;
     const progress = Math.min(elapsed / duration, 1);
     wheelRotation  = startRot + totalDelta * easeOutQuart(progress);
@@ -1994,7 +1994,7 @@ function doSpin() {
     if (progress < 1) {
       spinAnimationFrameId = requestAnimationFrame(frame);
     } else {
-      spinAnimationFrameId = 0;
+      spinAnimationFrameId = null;
       canvas.classList.remove('spinning');
       spinBtn.classList.remove('spinning-pulse');
       isSpinning = false;
