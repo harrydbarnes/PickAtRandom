@@ -1077,8 +1077,8 @@
 const C_GREEN  = '#3BBA9C';
 const C_PURPLE = '#2E3047';
 const DEFAULT_WEIGHT = 1;
-const SHARE_MIN_EXTRA_SPINS = 5;
-const SHARE_EXTRA_SPIN_VARIANCE = 3;
+const SHARE_MIN_EXTRA_SPINS_COUNT = 5;
+const SHARE_MAX_EXTRA_SPINS_COUNT = 7;
 const ZIP_EOCD_MIN_SIZE = 22;
 const ZIP_MAX_COMMENT_SIZE = 65535;
 /* ZIP signatures used when locating and reading XLSX archive metadata. */
@@ -1103,7 +1103,7 @@ function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
-function secureRandomFloat() {
+function cryptoRandomFloat() {
   const values = new Uint32Array(1);
   crypto.getRandomValues(values);
   return values[0] / 0x100000000;
@@ -1758,6 +1758,7 @@ function getWinnerCenterRotation(segWeights, winnerIdx) {
 }
 
 function getPositiveAngleDelta(fromAngle, toAngle) {
+  /* Normalise the current angle into [0, 2π) and return the clockwise distance to the target. */
   return ((toAngle - (fromAngle % (2 * Math.PI))) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
 }
 
@@ -2004,10 +2005,11 @@ function loadShareView() {
       const segWeights = getSegmentWeights(data.entries, data.weights);
       const targetRotation = getWinnerCenterRotation(segWeights, data.winnerIndex);
       const delta = getPositiveAngleDelta(shareWheelRotation, targetRotation);
-      const extraSpins = SHARE_MIN_EXTRA_SPINS + Math.floor(secureRandomFloat() * SHARE_EXTRA_SPIN_VARIANCE);
+      const extraSpinsRange = SHARE_MAX_EXTRA_SPINS_COUNT - SHARE_MIN_EXTRA_SPINS_COUNT + 1;
+      const extraSpins = SHARE_MIN_EXTRA_SPINS_COUNT + Math.floor(cryptoRandomFloat() * extraSpinsRange);
       const totalDelta = extraSpins * 2 * Math.PI + delta;
       const startRot = shareWheelRotation;
-      const duration = 4200 + secureRandomFloat() * 800;
+      const duration = 4200 + cryptoRandomFloat() * 800;
       const startTime = performance.now();
 
       canvas.classList.add('spinning');
