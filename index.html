@@ -1666,22 +1666,23 @@ function drawWheel(canvas, entries, rotation, weights) {
     /* Clip text to segment radial area */
     const minTextStart = 18;
     const minTextWidth = 24;
-    const minEdgePad   = 12;
-    const edgePad      = Math.max(minEdgePad, R * 0.08);
-    const textStart    = Math.max(minTextStart, R * 0.12);
-    const maxTextW     = Math.max(minTextWidth, R - textStart - edgePad);
+    const minEdgePadding  = 12;
+    const edgePadding     = Math.max(minEdgePadding, R * 0.08);
+    const textStart       = Math.max(minTextStart, R * 0.12);
+    const availableTextWidth = Math.max(0, R - textStart - edgePadding);
+    const maxTextWidth       = Math.max(minTextWidth, availableTextWidth);
     ctx.save();
     ctx.beginPath();
-    ctx.rect(textStart, -fontSize * 0.9, maxTextW, fontSize * 1.8);
+    ctx.rect(textStart, -fontSize * 0.9, maxTextWidth, fontSize * 1.8);
     ctx.clip();
 
     /* Binary-search truncation — O(log n) measureText calls vs linear scan */
     let label = entries[i];
-    if (ctx.measureText(label).width > maxTextW - 20) {
+    if (ctx.measureText(label).width > maxTextWidth - 20) {
       let lo = 2, hi = label.length;
       while (lo < hi) {
         const mid = Math.ceil((lo + hi) / 2);
-        if (ctx.measureText(label.slice(0, mid)).width <= maxTextW - 20) { lo = mid; }
+        if (ctx.measureText(label.slice(0, mid)).width <= maxTextWidth - 20) { lo = mid; }
         else { hi = mid - 1; }
       }
       label = label.slice(0, lo - 1) + '…';
