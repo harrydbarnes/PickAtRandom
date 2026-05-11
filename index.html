@@ -1077,6 +1077,8 @@
 const C_GREEN  = '#3BBA9C';
 const C_PURPLE = '#2E3047';
 const DEFAULT_WEIGHT = 1;
+const SHARE_MIN_EXTRA_SPINS = 5;
+const SHARE_EXTRA_SPIN_VARIANCE = 3;
 const ZIP_EOCD_MIN_SIZE = 22;
 const ZIP_MAX_COMMENT_SIZE = 65535;
 /* ZIP signatures used when locating and reading XLSX archive metadata. */
@@ -1749,6 +1751,10 @@ function getWinnerCenterRotation(segWeights, winnerIdx) {
   return (3 * Math.PI / 2) - (cumAngle + winnerSegAngle / 2);
 }
 
+function normalizeAngleDelta(fromAngle, toAngle) {
+  return ((toAngle - (fromAngle % (2 * Math.PI))) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+}
+
 function doSpin() {
   if (isSpinning) return;
 
@@ -1987,17 +1993,17 @@ function loadShareView() {
     showView('share');
     requestAnimationFrame(() => {
       if (!sharedResultData || isShareSpinning) return;
+      isShareSpinning = true;
 
       const segWeights = getSegmentWeights(data.entries, data.weights);
       const targetRotation = getWinnerCenterRotation(segWeights, data.winnerIndex);
-      const delta = ((targetRotation - (shareWheelRotation % (2 * Math.PI))) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
-      const extraSpins = 5 + Math.floor(Math.random() * 3);
+      const delta = normalizeAngleDelta(shareWheelRotation, targetRotation);
+      const extraSpins = SHARE_MIN_EXTRA_SPINS + Math.floor(Math.random() * SHARE_EXTRA_SPIN_VARIANCE);
       const totalDelta = extraSpins * 2 * Math.PI + delta;
       const startRot = shareWheelRotation;
       const duration = 4200 + Math.random() * 800;
       const startTime = performance.now();
 
-      isShareSpinning = true;
       canvas.classList.add('spinning');
 
       function frame(now) {
