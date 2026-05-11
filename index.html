@@ -1510,6 +1510,7 @@ const RECENT_HISTORY_BUTTON_LABEL = 'Recent Spins';
 const RECENT_HISTORY_BUTTON_ICON = '🕘';
 const FUTURE_TIMESTAMP_TOLERANCE_MS = 5 * 60 * 1000;
 const RECENT_SELECTION_TIME_PLACEHOLDER = 'Unknown time';
+const DRAWER_TRANSITION_DURATION_MS = 280;
 /* ZIP signatures used when locating and reading XLSX archive metadata. */
 const ZIP_EOCD_SIGNATURE = 0x06054b50;
 const ZIP_CENTRAL_DIRECTORY_SIGNATURE = 0x02014b50;
@@ -2584,7 +2585,7 @@ function getWinnerCenterRotation(segWeights, winnerIdx) {
   let cumAngle = 0;
   for (let i = 0; i < winnerIdx; i++) cumAngle += segWeights[i] * 2 * Math.PI;
   const winnerSegAngle = segWeights[winnerIdx] * 2 * Math.PI;
-  /* Rotate so the winner settles against the pointer positioned at 3 o'clock (0 radians). */
+  /* Rotate so the winning segment centre reaches 0 radians, where the right-side pointer touches the wheel. */
   return -(cumAngle + winnerSegAngle / 2);
 }
 
@@ -2747,7 +2748,7 @@ function closeRecentHistory(forceImmediate = false) {
       panel.hidden = true;
       backdrop.hidden = true;
     }
-  }, 280);
+  }, DRAWER_TRANSITION_DURATION_MS);
 }
 
 function openRecentHistory() {
