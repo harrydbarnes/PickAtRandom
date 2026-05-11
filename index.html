@@ -1985,7 +1985,7 @@ function doSpin() {
   canvas.classList.add('spinning');
 
   function frame(now) {
-    if (currentSpinSessionId !== spinSessionId) return; /* Prevent completion logic from running after cancelSpin() has already cleaned up the old spin. */
+    if (currentSpinSessionId !== spinSessionId) return; /* Skip if this spin session was cancelled. */
     const elapsed  = now - startTime;
     const progress = Math.min(elapsed / duration, 1);
     wheelRotation  = startRot + totalDelta * easeOutQuart(progress);
