@@ -1455,10 +1455,10 @@ function saveWheels() {
 
 function loadWheels() {
   try {
-    wheels = JSON.parse(localStorage.getItem('par_wheels') || '[]').map(wheel => ({
+    wheels = JSON.parse(localStorage.getItem('par_wheels') || '[]').map(({ name, ...wheel }) => ({
       ...wheel,
       /* Legacy wheels stored the task title in "name"; hydrate "taskTitle" on load. */
-      taskTitle: getWheelTaskTitle(wheel),
+      taskTitle: wheel.taskTitle || name || '',
     }));
   } catch (_) {
     wheels = [];
@@ -1755,8 +1755,6 @@ function saveCurrentWheel(andSpin) {
     if (w) {
       w.activity = activity;
       w.taskTitle = taskTitle;
-      /* Keep legacy "name" in sync only for older wheels that already have it stored. */
-      if ('name' in w) w.name = taskTitle;
       w.entries = entries;
       w.settings.rememberSpun   = rememberSpun;
       w.settings.weightLabel    = weightLabel;
