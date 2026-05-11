@@ -2457,7 +2457,7 @@ function drawWheel(canvas, entries, rotation, weights) {
   const R   = Math.min(cx, cy) - 4;
   const HUB_RADIUS = 22;
   const CENTER_DOT_RADIUS = 8;
-  const LABEL_HUB_OFFSET = 20;
+  const LABEL_HUB_OFFSET = 20; /* Keeps short labels visibly outside the hub. */
 
   ctx.clearRect(0, 0, W, H);
 
@@ -2803,7 +2803,7 @@ function toggleRecentHistory() {
   const button = document.getElementById('btn-toggle-recent');
   const panel = document.getElementById('recent-history-panel');
   if (!button || !panel) return;
-  const expanded = panel.classList.contains('open');
+  const expanded = button.getAttribute('aria-expanded') === 'true';
   if (expanded) closeRecentHistory();
   else openRecentHistory();
 }
