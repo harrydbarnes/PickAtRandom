@@ -631,6 +631,12 @@
       margin: 0 auto;
     }
     .share-subtitle { font-size: 1rem; font-weight: 700; opacity: 0.6; }
+    .share-spin-status {
+      font-size: 0.95rem;
+      font-weight: 700;
+      opacity: 0.7;
+      min-height: 1.4rem;
+    }
     .share-result-box {
       background: var(--purple);
       color: var(--green);
@@ -639,6 +645,7 @@
       max-width: 400px;
       width: 100%;
     }
+    .share-result-box[hidden] { display: none; }
     .share-result-box .big-emoji { font-size: 3rem; margin-bottom: 0.5rem; }
     .share-result-box h2 { font-size: 1.5rem; font-weight: 900; margin-bottom: 0.4rem; }
     .share-result-box p { font-size: 1rem; opacity: 0.8; }
@@ -1002,13 +1009,14 @@
 
   <div class="share-content">
     <p class="share-subtitle">Shared Result</p>
+    <p class="share-spin-status" id="share-spin-status">Spinning the wheel...</p>
 
     <div class="wheel-wrapper">
       <div class="wheel-pointer-el" aria-hidden="true">▼</div>
       <canvas id="share-wheel-canvas" width="320" height="320"></canvas>
     </div>
 
-    <div class="share-result-box" id="share-result-box">
+    <div class="share-result-box" id="share-result-box" hidden>
       <div class="big-emoji">🎉</div>
       <h2 id="share-winner-name">Winner</h2>
       <p  id="share-wheel-label">was selected</p>
@@ -1082,6 +1090,11 @@ let wheelRotation   = 0;
 let isSpinning      = false;
 let lastWinnerIdx   = -1;
 let lastWinnerName  = '';
+let lastSpinEntries = [];
+let lastSpinWeights = null;
+let shareWheelRotation = 0;
+let sharedResultData   = null;
+let isShareSpinning    = false;
 
 /* ─── Utilities ─────────────────────────────────────────────────────────────── */
 function uid() {
@@ -1590,6 +1603,12 @@ function fitCanvas(canvas) {
   canvas.height = size;
 }
 
+function fitShareCanvas(canvas) {
+  const size = Math.min(window.innerWidth - 48, 320);
+  canvas.width  = size;
+  canvas.height = size;
+}
+
 function updateSpinStatus(wheel, avail) {
   const btn    = document.getElementById('btn-spin');
   const status = document.getElementById('spin-status');
@@ -1717,6 +1736,17 @@ function easeOutQuart(t) {
   return 1 - Math.pow(1 - t, 4);
 }
 
+function getSegmentWeights(entries, weights) {
+  return (weights && weights.length === entries.length) ? weights : entries.map(() => 1 / entries.length);
+}
+
+function getWinnerCenterRotation(segWeights, winnerIdx) {
+  let cumAngle = 0;
+  for (let i = 0; i < winnerIdx; i++) cumAngle += segWeights[i] * 2 * Math.PI;
+  const winnerSegAngle = segWeights[winnerIdx] * 2 * Math.PI;
+  return (3 * Math.PI / 2) - (cumAngle + winnerSegAngle / 2);
+}
+
 function doSpin() {
   if (isSpinning) return;
 
@@ -1733,6 +1763,8 @@ function doSpin() {
 
   /* Compute effective weights for available entries */
   const weights = getEffectiveWeights(avail);
+  lastSpinEntries = [...avail];
+  lastSpinWeights = weights ? [...weights] : null;
 
   /* Cryptographically secure (weighted) random winner */
   const winnerIdx = weights
@@ -1911,12 +1943,12 @@ function shareResult() {
   const wheel = getWheel(currentWheelId);
   if (!wheel || lastWinnerIdx < 0) return;
 
-  const avail = availableEntries(wheel);
   const payload = {
     name:        wheel.name,
-    entries:     avail,
+    entries:     lastSpinEntries,
     winnerIndex: lastWinnerIdx,
     winnerName:  lastWinnerName,
+    weights:     lastSpinWeights,
   };
 
   try {
@@ -1937,22 +1969,56 @@ function loadShareView() {
   try {
     const encoded = location.hash.slice(7);
     const data    = JSON.parse(decodeURIComponent(atob(encoded)));
+    if (!Array.isArray(data.entries) || data.entries.length < 2) return false;
+    if (!Number.isInteger(data.winnerIndex) || data.winnerIndex < 0 || data.winnerIndex >= data.entries.length) return false;
+
+    sharedResultData = data;
+    shareWheelRotation = 0;
+    isShareSpinning = false;
 
     const canvas = document.getElementById('share-wheel-canvas');
-    const size   = Math.min(window.innerWidth - 48, 320);
-    canvas.width  = size;
-    canvas.height = size;
-
-    /* Rotate wheel so winner lands exactly under pointer */
-    const N        = data.entries.length;
-    const segAngle = (2 * Math.PI) / N;
-    const rot      = (3 * Math.PI / 2) - (data.winnerIndex * segAngle + segAngle / 2);
-    drawWheel(canvas, data.entries, rot);
-
-    document.getElementById('share-winner-name').textContent = `🏆 ${data.winnerName}`;
-    document.getElementById('share-wheel-label').textContent = `was selected to: ${data.name}`;
+    fitShareCanvas(canvas);
+    drawWheel(canvas, data.entries, shareWheelRotation, data.weights);
+    document.getElementById('share-result-box').hidden = true;
+    document.getElementById('share-spin-status').textContent = 'Spinning the wheel...';
 
     showView('share');
+    requestAnimationFrame(() => {
+      if (!sharedResultData || isShareSpinning) return;
+
+      const segWeights = getSegmentWeights(data.entries, data.weights);
+      const targetRotation = getWinnerCenterRotation(segWeights, data.winnerIndex);
+      const delta = ((targetRotation - (shareWheelRotation % (2 * Math.PI))) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+      const extraSpins = 5 + Math.floor(Math.random() * 3);
+      const totalDelta = extraSpins * 2 * Math.PI + delta;
+      const startRot = shareWheelRotation;
+      const duration = 4200 + Math.random() * 800;
+      const startTime = performance.now();
+
+      isShareSpinning = true;
+      canvas.classList.add('spinning');
+
+      function frame(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        shareWheelRotation = startRot + totalDelta * easeOutQuart(progress);
+        drawWheel(canvas, data.entries, shareWheelRotation, data.weights);
+
+        if (progress < 1) {
+          requestAnimationFrame(frame);
+          return;
+        }
+
+        canvas.classList.remove('spinning');
+        isShareSpinning = false;
+        document.getElementById('share-winner-name').textContent = `🏆 ${data.winnerName}`;
+        document.getElementById('share-wheel-label').textContent = `was selected to: ${data.name}`;
+        document.getElementById('share-result-box').hidden = false;
+        document.getElementById('share-spin-status').textContent = '';
+      }
+
+      requestAnimationFrame(frame);
+    });
     return true;
   } catch (_) {
     return false;
@@ -2384,13 +2450,20 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ── Resize: redraw wheel ── */
   window.addEventListener('resize', () => {
     updateExcelImportZone();
-    if (!document.getElementById('view-spin').classList.contains('active')) return;
-    const wheel = getWheel(currentWheelId);
-    if (!wheel) return;
-    const canvas = document.getElementById('wheel-canvas');
-    fitCanvas(canvas);
-    const avail = availableEntries(wheel);
-    drawWheel(canvas, avail, wheelRotation, getEffectiveWeights(avail));
+    if (document.getElementById('view-spin').classList.contains('active')) {
+      const wheel = getWheel(currentWheelId);
+      if (!wheel) return;
+      const canvas = document.getElementById('wheel-canvas');
+      fitCanvas(canvas);
+      const avail = availableEntries(wheel);
+      drawWheel(canvas, avail, wheelRotation, getEffectiveWeights(avail));
+      return;
+    }
+    if (document.getElementById('view-share').classList.contains('active') && sharedResultData) {
+      const canvas = document.getElementById('share-wheel-canvas');
+      fitShareCanvas(canvas);
+      drawWheel(canvas, sharedResultData.entries, shareWheelRotation, sharedResultData.weights);
+    }
   });
 });
 </script>
