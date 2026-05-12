@@ -622,7 +622,7 @@
       position: absolute;
       top: 50%;
       right: -1.85rem;
-      transform: translateY(-50%) rotate(-90deg);
+      transform: translateY(-50%) rotate(90deg);
       font-size: 2rem;
       color: var(--purple);
       line-height: 1;
@@ -2346,7 +2346,11 @@ function cancelSpin() {
   isSpinning = false;
   activeScenarioSpinIndex = -1;
   document.querySelectorAll('.spin-wheel-canvas').forEach(canvas => canvas.classList.remove('spinning'));
-  document.getElementById('btn-spin')?.classList.remove('spinning-pulse');
+  const cancelBtn = document.getElementById('btn-spin');
+  if (cancelBtn) {
+    cancelBtn.classList.remove('spinning-pulse');
+    cancelBtn.innerHTML = '🎰 Spin!';
+  }
 }
 
 function openSpin(wheelIds) {
@@ -2466,8 +2470,6 @@ function updateSpinStatus() {
     status.textContent = invalidEntries.length === 0
       ? `⚠️ ${getWheelDisplayName(invalidWheel)} has no entries left to spin`
       : `⚠️ ${getWheelDisplayName(invalidWheel)} needs at least 2 entries`;
-  } else if (isSpinning && activeScenarioSpinIndex >= 0) {
-    status.textContent = `Spinning wheel ${activeScenarioSpinIndex + 1} of ${spinWheels.length}...`;
   } else if (hasResults && spinWheels.length > 1) {
     status.textContent = 'All selected wheels have been assigned.';
   } else {
@@ -2493,7 +2495,6 @@ function drawWheel(canvas, entries, rotation, weights) {
   const R   = Math.min(cx, cy) - 4;
   const HUB_RADIUS = 22;
   const CENTER_DOT_RADIUS = 8;
-  const LABEL_HUB_OFFSET = 20; /* Keeps short labels visibly outside the hub. */
 
   ctx.clearRect(0, 0, W, H);
 
@@ -2542,29 +2543,18 @@ function drawWheel(canvas, entries, rotation, weights) {
     ctx.fillStyle    = textColor;
     const fontSize   = Math.max(10, Math.min(15, R * 0.125));
     ctx.font         = `bold ${fontSize}px system-ui, sans-serif`;
-    ctx.textAlign    = 'left';
+    ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
 
-    /* Keep labels outside the 22px hub so short names do not bunch into the center. */
-    const minTextStart = HUB_RADIUS + LABEL_HUB_OFFSET;
-    const minEdgePadding = 12; /* Keep labels away from the outer ring. */
-    const minTextWidth = 24; /* Keep enough room for short readable labels. */
-    const fallbackTextStart = HUB_RADIUS + 8;
-    const fallbackEdgePadding = 6;
-    const fallbackTextWidth = 12;
+    /* Centre the label at the radial midpoint of the segment. */
+    const edgePadding = Math.max(12, R * 0.08);
+    const maxTextWidth = Math.max(12, R - HUB_RADIUS - edgePadding);
+    const textMid = HUB_RADIUS + maxTextWidth / 2;
     const textTruncationPadding = 20;
-    let textStart = Math.max(minTextStart, R * 0.22);
-    let edgePadding      = Math.max(minEdgePadding, R * 0.08);
-    let maxTextWidth     = R - textStart - edgePadding;
 
-    if (maxTextWidth < minTextWidth) {
-      textStart    = Math.max(fallbackTextStart, R * 0.16);
-      edgePadding  = Math.max(fallbackEdgePadding, R * 0.04);
-      maxTextWidth = Math.max(fallbackTextWidth, R - textStart - edgePadding);
-    }
     ctx.save();
     ctx.beginPath();
-    ctx.rect(textStart, -fontSize * 0.9, maxTextWidth, fontSize * 1.8);
+    ctx.rect(textMid - maxTextWidth / 2, -fontSize * 0.9, maxTextWidth, fontSize * 1.8);
     ctx.clip();
 
     /* Binary-search truncation — O(log n) measureText calls vs linear scan */
@@ -2579,7 +2569,7 @@ function drawWheel(canvas, entries, rotation, weights) {
       label = label.slice(0, lo - 1) + '…';
     }
 
-    ctx.fillText(label, textStart, 0);
+    ctx.fillText(label, textMid, 0);
     ctx.restore();
     ctx.restore();
 
@@ -2719,6 +2709,7 @@ async function doSpin() {
   const spinBtn = document.getElementById('btn-spin');
   spinBtn.disabled = true;
   spinBtn.classList.add('spinning-pulse');
+  spinBtn.innerHTML = '🎰 <em>Spinning...</em>';
 
   for (let i = 0; i < spinWheels.length; i++) {
     if (currentSpinSessionId !== spinSessionId) return;
@@ -2732,6 +2723,7 @@ async function doSpin() {
   activeScenarioSpinIndex = -1;
   isSpinning = false;
   spinBtn.classList.remove('spinning-pulse');
+  spinBtn.innerHTML = '🎰 Spin!';
   renderSpinPanels();
   updateSpinStatus();
 }
