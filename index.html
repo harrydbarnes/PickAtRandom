@@ -3489,12 +3489,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!dragging) return;
       dragging = false;
       panel.style.transition = '';
-      if (dragY >= CLOSE_THRESHOLD) {
-        panel.style.transform = '';
-        closeRecentHistory();
-      } else {
-        panel.style.transform = '';
-      }
+      panel.style.transform = '';
+      if (dragY >= CLOSE_THRESHOLD) closeRecentHistory();
     }
 
     handle.addEventListener('pointerup',     onRelease);
