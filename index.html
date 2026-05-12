@@ -2347,7 +2347,10 @@ function cancelSpin() {
   activeScenarioSpinIndex = -1;
   document.querySelectorAll('.spin-wheel-canvas').forEach(canvas => canvas.classList.remove('spinning'));
   const cancelBtn = document.getElementById('btn-spin');
-  if (cancelBtn) { cancelBtn.classList.remove('spinning-pulse'); cancelBtn.innerHTML = '🎰 Spin!'; }
+  if (cancelBtn) {
+    cancelBtn.classList.remove('spinning-pulse');
+    cancelBtn.innerHTML = '🎰 Spin!';
+  }
 }
 
 function openSpin(wheelIds) {
@@ -2544,9 +2547,9 @@ function drawWheel(canvas, entries, rotation, weights) {
     ctx.textBaseline = 'middle';
 
     /* Centre the label at the radial midpoint of the segment. */
-    const edgePadding    = Math.max(12, R * 0.08);
-    const maxTextWidth   = Math.max(12, R - HUB_RADIUS - edgePadding);
-    const textMid        = HUB_RADIUS + maxTextWidth / 2;
+    const edgePadding = Math.max(12, R * 0.08);
+    const maxTextWidth = Math.max(12, R - HUB_RADIUS - edgePadding);
+    const textMid = HUB_RADIUS + maxTextWidth / 2;
     const textTruncationPadding = 20;
 
     ctx.save();
