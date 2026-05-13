@@ -24,6 +24,8 @@
       --tab-count: 2;
       --tab-transition-duration: 0.32s;
       --tab-fade-duration: 0.24s;
+      --header-title-transition-duration: 0.28s;
+      --header-title-offset: 0.65rem;
     }
 
     body {
@@ -87,7 +89,9 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      transition: opacity 0.22s ease, transform 0.22s ease;
+      transition:
+        opacity var(--header-title-transition-duration) ease,
+        transform var(--header-title-transition-duration) ease;
     }
     .app-logo {
       transform: translateY(0);
@@ -96,13 +100,13 @@
     .app-header-title {
       position: absolute;
       inset: 50% 0 auto 0;
-      transform: translateY(calc(-50% + 0.65rem));
+      transform: translateY(calc(-50% + var(--header-title-offset)));
       opacity: 0;
       pointer-events: none;
     }
     .app-header-center.show-title .app-logo {
       opacity: 0;
-      transform: translateY(-0.65rem);
+      transform: translateY(calc(-1 * var(--header-title-offset)));
       pointer-events: none;
     }
     .app-header-center.show-title .app-header-title {
