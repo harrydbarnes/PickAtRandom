@@ -3371,7 +3371,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ── Setup ── */
   document.getElementById('btn-app-back').addEventListener('click', () => {
-    if (activeViewName !== 'setup' && activeViewName !== 'spin') return;
     renderHome();
     showView('home');
   });
