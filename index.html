@@ -2059,10 +2059,11 @@ function syncAppHeader() {
       ? spinHeaderTitle
       : '';
   backButton.classList.toggle('is-hidden', !showBackButton);
+  backButton.disabled = !showBackButton;
+  backButton.tabIndex = showBackButton ? 0 : -1;
   editButton.classList.toggle('is-hidden', !showEditButton);
   editButton.disabled = !showEditButton;
   editButton.tabIndex = showEditButton ? 0 : -1;
-  editButton.setAttribute('aria-hidden', showEditButton ? 'false' : 'true');
 }
 
 function showView(name) {
@@ -2116,6 +2117,7 @@ function openSetup(wheelId) {
   const wheel = wheelId ? getWheel(wheelId) : null;
 
   setupHeaderTitle = wheel ? 'Edit Wheel' : 'Setup My Wheel';
+  if (activeViewName === 'setup') syncAppHeader();
   document.getElementById('activity-input').value     = wheel ? getWheelActivity(wheel) : '';
   document.getElementById('activity-input').classList.remove('input-error');
   document.getElementById('wheel-name-input').value   = wheel ? getWheelTaskTitle(wheel) : '';
@@ -2416,6 +2418,7 @@ function openSpin(wheelIds) {
   spinHeaderTitle = spinWheels.length === 1
     ? getWheelDisplayName(spinWheels[0])
     : `Scenario Spin (${spinWheels.length})`;
+  if (activeViewName === 'spin') syncAppHeader();
 
   showView('spin');
   renderSpinPanels();
@@ -3375,8 +3378,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ── Setup ── */
   document.getElementById('btn-app-back').addEventListener('click', () => {
-    renderHome();
-    showView('home');
+    switch (activeViewName) {
+      case 'setup':
+      case 'spin':
+        renderHome();
+        showView('home');
+        break;
+      default:
+        break;
+    }
   });
 
   document.querySelectorAll('.tab-btn').forEach(btn =>
