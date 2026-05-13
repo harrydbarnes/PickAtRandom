@@ -24,6 +24,8 @@
       --tab-count: 2;
       --tab-transition-duration: 0.32s;
       --tab-fade-duration: 0.24s;
+      --header-title-transition-duration: 0.28s;
+      --header-title-offset: 0.65rem;
     }
 
     body {
@@ -65,16 +67,51 @@
       top: 0;
       z-index: 50;
     }
-    .app-header-center { min-width: 0; }
+    .app-header-center {
+      min-width: 0;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 1.6rem;
+      overflow: hidden;
+    }
     .app-header h1 {
       font-size: 1.15rem;
       font-weight: 800;
       text-align: center;
+      margin: 0;
     }
+    .app-logo,
     .app-header-title {
+      display: block;
+      max-width: 100%;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      transition:
+        opacity var(--header-title-transition-duration) ease,
+        transform var(--header-title-transition-duration) ease;
+    }
+    .app-logo {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    .app-header-title {
+      position: absolute;
+      inset: 50% 0 auto 0;
+      transform: translateY(calc(-50% + var(--header-title-offset)));
+      opacity: 0;
+      pointer-events: none;
+    }
+    .app-header-center.show-title .app-logo {
+      opacity: 0;
+      transform: translateY(calc(-1 * var(--header-title-offset)));
+      pointer-events: none;
+    }
+    .app-header-center.show-title .app-header-title {
+      opacity: 1;
+      transform: translateY(-50%);
     }
     .back-btn {
       background: none;
@@ -1285,7 +1322,9 @@
       .tab-highlight,
       .tab-btn,
       .tab-panels,
-      .tab-panel {
+      .tab-panel,
+      .app-logo,
+      .app-header-title {
         transition: none;
       }
     }
@@ -1297,7 +1336,7 @@
     <button class="back-btn app-header-control is-hidden" id="btn-app-back" aria-label="Back"><span aria-hidden="true">←</span></button>
     <div class="app-header-center">
       <span class="app-logo" id="app-header-logo">Pick<span class="logo-dot">@</span>Random</span>
-      <h1 class="app-header-title" id="app-header-title" hidden></h1>
+      <h1 class="app-header-title" id="app-header-title" aria-hidden="true"></h1>
     </div>
     <button class="icon-btn app-header-control is-hidden" id="btn-edit-wheel" title="Edit wheel" aria-label="Edit wheel">✏️</button>
   </header>
@@ -2045,19 +2084,21 @@ function syncAppHeader() {
   const title = document.getElementById('app-header-title');
   const logo = document.getElementById('app-header-logo');
   const editButton = document.getElementById('btn-edit-wheel');
-  if (!backButton || !title || !logo || !editButton) return;
+  const headerCenter = title?.parentElement;
+  if (!backButton || !title || !logo || !editButton || !headerCenter) return;
 
   const useLogo = activeViewName === 'home' || activeViewName === 'share';
   const showBackButton = activeViewName === 'setup' || activeViewName === 'spin';
   const showEditButton = activeViewName === 'spin' && currentSpinWheelIds.length === 1;
 
-  logo.hidden = !useLogo;
-  title.hidden = useLogo;
   title.textContent = activeViewName === 'setup'
     ? setupHeaderTitle
     : activeViewName === 'spin'
       ? spinHeaderTitle
       : '';
+  headerCenter.classList.toggle('show-title', !useLogo);
+  logo.setAttribute('aria-hidden', String(!useLogo));
+  title.setAttribute('aria-hidden', String(useLogo));
   backButton.classList.toggle('is-hidden', !showBackButton);
   backButton.disabled = !showBackButton;
   editButton.classList.toggle('is-hidden', !showEditButton);
