@@ -1292,7 +1292,7 @@
   </style>
 </head>
 <body>
-<div class="app-shell">
+<main class="app-shell">
   <header class="app-header">
     <button class="back-btn app-header-control is-hidden" id="btn-app-back" aria-label="Back">←</button>
     <div class="app-header-center">
@@ -1473,7 +1473,7 @@
     <button class="share-create-btn" id="btn-create-own">🎡 Create Your Own Wheel</button>
   </div>
 </div>
-</div>
+</main>
 
 <!-- ═══════════════════════════════════════════════ OVERLAY: Result Popup ═══ -->
 <div class="popup-overlay" id="result-popup" style="display:none" role="dialog" aria-modal="true" aria-labelledby="popup-title-el">
@@ -2053,7 +2053,11 @@ function syncAppHeader() {
 
   logo.hidden = !useLogo;
   title.hidden = useLogo;
-  title.textContent = activeViewName === 'setup' ? setupHeaderTitle : spinHeaderTitle;
+  title.textContent = activeViewName === 'setup'
+    ? setupHeaderTitle
+    : activeViewName === 'spin'
+      ? spinHeaderTitle
+      : '';
   backButton.classList.toggle('is-hidden', !showBackButton);
   editButton.classList.toggle('is-hidden', !showEditButton);
   editButton.disabled = !showEditButton;
