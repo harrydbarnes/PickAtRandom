@@ -90,28 +90,22 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      transition:
-        opacity var(--header-title-transition-duration) ease,
-        transform var(--header-title-transition-duration) ease;
+      transition: transform var(--header-title-transition-duration) ease;
     }
     .app-logo {
       transform: translateY(0);
-      opacity: 1;
     }
     .app-header-title {
       position: absolute;
       inset: 50% 0 auto 0;
-      transform: translateY(calc(-50% + var(--header-title-offset)));
-      opacity: 0;
+      transform: translateY(calc(-50% + 100% + var(--header-title-offset)));
       pointer-events: none;
     }
     .app-header-center.show-title .app-logo {
-      opacity: 0;
-      transform: translateY(calc(-1 * var(--header-title-offset)));
+      transform: translateY(calc(-100% - var(--header-title-offset)));
       pointer-events: none;
     }
     .app-header-center.show-title .app-header-title {
-      opacity: 1;
       transform: translateY(-50%);
     }
     .back-btn {
